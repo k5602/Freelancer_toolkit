@@ -1,0 +1,10 @@
+fastapi
+uvicorn
+pydantic
+python-dotenv
+requests
+playwright
+beautifulsoup4
+spacy
+elevenlabs
+PerplexiPy
