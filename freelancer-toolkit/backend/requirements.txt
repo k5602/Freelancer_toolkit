@@ -1,10 +1,57 @@
-fastapi
-uvicorn
-pydantic
-python-dotenv
-requests
-playwright
-beautifulsoup4
-spacy
-elevenlabs
-PerplexiPy
+# Core Framework
+fastapi==0.116.1
+uvicorn[standard]==0.35.0
+pydantic[email]==2.10.3
+pydantic-settings==2.7.0
+
+# HTTP Client & Web
+httpx==0.28.1
+requests==2.32.3
+python-multipart==0.0.20
+
+# Web Scraping
+playwright==1.49.1
+playwright-stealth==2.0.0
+beautifulsoup4==4.12.3
+lxml==6.0.1
+selectolax==0.3.27
+
+# Database
+sqlmodel==0.0.24
+alembic==1.14.0
+sqlite-utils==3.38.0
+
+# Authentication & Security
+python-jose[cryptography]==3.5.0
+passlib[bcrypt]==1.7.4
+python-multipart==0.0.20
+
+# Background Tasks
+celery==5.4.0
+redis==6.4.0
+
+# Rate Limiting & Caching
+slowapi==0.1.9
+fastapi-limiter==0.1.6
+
+# Environment & Config
+python-dotenv==1.0.1
+pydantic-settings==2.7.0
+
+# Audio/Media Processing
+Pillow==11.1.0
+
+# Utilities
+validators==0.35.0
+python-dateutil==2.9.0.post0
+
+# Development
+pytest==8.3.4
+pytest-asyncio==1.1.0
+black==24.12.0
+isort==6.0.1
+flake8==7.1.1
+mypy==1.14.0
+
+# Monitoring
+structlog==25.4.0
