@@ -1,7 +1,13 @@
 import axios from 'axios';
 
 const BASE_URL = '/api';
-export async function generateProposal(data: { job_description: string; client_requirements: string; }) {
+
+export async function generateProposal(data: {
+	job_url?: string;
+	job_description?: string;
+	user_skills: string[];
+	target_rate?: number;
+}) {
 	try {
 		const res = await axios.post(`${BASE_URL}/proposal/generate`, data);
 		return res.data;
