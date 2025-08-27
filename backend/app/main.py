@@ -32,3 +32,7 @@ app.include_router(contract.router, prefix="/api/contract", tags=["contract"])
 @app.get("/")
 def read_root():
     return {"message": "Welcome to the Freelancer Toolkit API"}
+
+@app.get("/health", tags=["system"])
+def health_check():
+    return {"status": "ok"}

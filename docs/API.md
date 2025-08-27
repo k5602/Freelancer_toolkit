@@ -1,13 +1,23 @@
 # API Documentation
 
 This document provides details on the API endpoints for the Freelancer Toolkit.
-as i advance in development i will fill it out later
 
 ## Base URL
 
 `http://localhost:8000/api`
 
 ## Endpoints
+
+### Health Check
+
+- **URL:** `/health`
+- **Method:** `GET`
+- **Response:**
+  ```json
+  {
+    "status": "ok"
+  }
+  ```
 
 ### Proposal Generator
 
@@ -59,3 +69,14 @@ as i advance in development i will fill it out later
     "contract_text": "string"
   }
   ```
+
+## Usage Notes
+
+- All endpoints return errors in the format:
+  ```json
+  {
+    "detail": "Error message"
+  }
+  ```
+- API keys for Gemini and ElevenLabs must be set in `.env`.
+- Audio files are served from `/audio/{filename}`.
