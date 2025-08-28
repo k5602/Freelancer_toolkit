@@ -29,3 +29,16 @@
     ],
     "references": [{ "path": "./tsconfig.node.json" }]
 }
+{
+  "compilerOptions": {
+  },
+  "include": [
+    "src",
+    "vite.config.ts"
+  ],
+  "exclude": [
+    "**/__tests__",
+    "node_modules",
+    "dist"
+  ]
+}
