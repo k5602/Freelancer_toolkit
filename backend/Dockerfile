@@ -12,7 +12,13 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 # Set the working directory
 WORKDIR /app
 
+# ------------------------------------------------------------------------------
 # System dependencies
+# ------------------------------------------------------------------------------
+# Set a reliable DNS server to fix apt-get issues
+RUN echo "nameserver 8.8.8.8" > /etc/resolv.conf
+
+# Update and install necessary packages
 RUN --mount=type=cache,target=/var/cache/apt \
     apt-get update && \
     DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
@@ -48,7 +54,9 @@ RUN --mount=type=cache,target=/var/cache/apt \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*
 
+# ------------------------------------------------------------------------------
 # Python dependencies
+# ------------------------------------------------------------------------------
 COPY requirements.txt ./
 RUN --mount=type=cache,target=/root/.cache/pip \
     pip install --upgrade pip && \
@@ -56,7 +64,9 @@ RUN --mount=type=cache,target=/root/.cache/pip \
     python -m playwright install-deps chromium && \
     python -m playwright install chromium
 
+# ------------------------------------------------------------------------------
 # Copy backend application files
+# ------------------------------------------------------------------------------
 COPY . ./
 
 # Nginx config
@@ -104,7 +114,9 @@ server {
 }
 NGINX_CONF
 
+# ------------------------------------------------------------------------------
 # Supervisor config
+# ------------------------------------------------------------------------------
 RUN mkdir -p /var/log/supervisor /var/run/nginx /app/audio_files
 RUN set -eux; \
     cat > /etc/supervisor/conf.d/app.conf <<'SUPERVISOR_CONF'
@@ -136,7 +148,9 @@ stopasgroup=true
 killasgroup=true
 SUPERVISOR_CONF
 
+# ------------------------------------------------------------------------------
 # Healthcheck
+# ------------------------------------------------------------------------------
 HEALTHCHECK --interval=30s --timeout=5s --start-period=40s --retries=3 \
   CMD curl -fsS http://127.0.0.1/api/health || exit 1
 
