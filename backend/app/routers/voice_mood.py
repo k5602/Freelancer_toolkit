@@ -151,8 +151,67 @@ def _negotiation_tips_for(mood: SupportedMood) -> list[str]:
 
 # ---- Endpoint ----------------------------------------------------------------
 
-
-@router.post("/generate-response", response_model=VoiceMoodResponse)
+@router.post(
+    "/generate-response",
+    response_model=VoiceMoodResponse,
+    responses={
+        200: {
+            "description": "Generated mood-aware response (text + audio)",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "mood": "urgent",
+                        "language": "en",
+                        "response_text": "Thanks for the update—understood on the urgency. Here's a feasible plan with a clear timeline...",
+                        "audio_url": "/audio/output_abcdef123.mp3",
+                        "negotiation_advice": [
+                            "Propose the fastest feasible plan and a clear timeline.",
+                            "Offer a small scope cut or phased delivery if needed.",
+                            "Confirm deadlines and risks in writing."
+                        ]
+                    }
+                }
+            }
+        }
+    },
+    openapi_extra={
+        "requestBody": {
+            "content": {
+                "application/json": {
+                    "examples": {
+                        "auto_detect": {
+                            "summary": "Auto language & mood detection",
+                            "value": {
+                                "message_text": "Can we deliver this faster? We need it this week.",
+                                "language": "auto",
+                                "tone_override": None,
+                                "max_words": 160
+                            }
+                        },
+                        "arabic": {
+                            "summary": "Arabic response",
+                            "value": {
+                                "message_text": "العميل: هل يمكن تسليم المشروع بسرعة؟ نحتاجه هذا الأسبوع.",
+                                "language": "ar",
+                                "tone_override": "professional",
+                                "max_words": 120
+                            }
+                        },
+                        "german_urgent": {
+                            "summary": "German with urgent tone override",
+                            "value": {
+                                "message_text": "Können wir das schneller liefern? Es ist dringend.",
+                                "language": "de",
+                                "tone_override": "urgent",
+                                "max_words": 140
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    },
+)
 async def generate_mood_aware_response(req: VoiceMoodRequest) -> VoiceMoodResponse:
     """
     Generate a mood-aware response text and convert it to speech.

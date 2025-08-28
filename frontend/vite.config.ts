@@ -5,6 +5,7 @@ export default defineConfig({
     server: {
         proxy: {
             "/api": "http://localhost:8000",
+            "/api/v1": "http://localhost:8000",
             "/audio": "http://localhost:8000",
         },
     },

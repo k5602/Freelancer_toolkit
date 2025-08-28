@@ -88,7 +88,6 @@ const ProposalGenerator: React.FC = () => {
             }
         } catch {}
         // run once
-        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
     const formValues = watch();
@@ -149,12 +148,16 @@ const ProposalGenerator: React.FC = () => {
             setResponse(res);
             toast.success("Proposal generated successfully");
         } catch (err: any) {
+            console.error("[Proposal] generateProposal request failed:", err);
             if (err?.status === 400) {
                 const msg = err?.message || "Add job description or a valid URL.";
                 setErrorMsg(msg);
                 toast.error(msg);
             } else {
-                const msg = err?.message || "Failed to generate proposal";
+                const status = typeof err?.status !== "undefined" ? ` [${err.status}]` : "";
+                const msg = err?.message
+                    ? `${err.message}${status}`
+                    : `Failed to generate proposal${status}`;
                 setErrorMsg(msg);
                 toast.error(msg);
             }
@@ -429,139 +432,172 @@ const ProposalGenerator: React.FC = () => {
                 <Dialog.Portal>
                     <Dialog.Overlay className="fixed inset-0 bg-black/40 z-40" />
                     <Dialog.Content
-                        className="fixed z-50 left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 bg-white dark:bg-gray-800 dark:text-gray-100 rounded-lg shadow-lg max-w-lg w-full p-6"
+                        className="fixed z-50 left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 bg-white dark:bg-gray-800 dark:text-gray-100 rounded-xl shadow-2xl w-[95vw] max-w-3xl max-h-[85vh] p-0 flex flex-col"
                         aria-modal="true"
                         aria-label="Generated Proposal"
                     >
                         {response && (
                             <>
-                                <Dialog.Title className="text-xl font-bold mb-2">
+                                <Dialog.Title className="text-2xl font-bold mb-2">
                                     Generated Proposal
                                 </Dialog.Title>
-                                {/* Proposal Text */}
-                                <div className="mt-2">
-                                    <div className="flex items-center justify-between">
-                                        <span className="font-semibold">Proposal</span>
-                                        <button
-                                            className="text-xs px-2 py-1 rounded bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600"
-                                            onClick={async () => {
-                                                const ok = await copyToClipboard(
-                                                    response.proposal_text,
-                                                );
-                                                toast[ok ? "success" : "error"](
-                                                    ok ? "Copied" : "Copy failed",
-                                                );
-                                            }}
-                                        >
-                                            Copy
-                                        </button>
-                                    </div>
-                                    <p className="mt-1 whitespace-pre-line font-mono text-sm break-words">
-                                        {response.proposal_text}
-                                    </p>
-                                </div>
-
-                                {/* Pricing Strategy */}
-                                <div className="mt-3 text-sm">
-                                    <div className="flex items-center justify-between">
-                                        <strong>Pricing Strategy</strong>
-                                        <button
-                                            className="text-xs px-2 py-1 rounded bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600"
-                                            onClick={async () => {
-                                                const ok = await copyToClipboard(
-                                                    response.pricing_strategy,
-                                                );
-                                                toast[ok ? "success" : "error"](
-                                                    ok ? "Copied" : "Copy failed",
-                                                );
-                                            }}
-                                        >
-                                            Copy
-                                        </button>
-                                    </div>
-                                    <div className="mt-1">{response.pricing_strategy}</div>
-                                </div>
-
-                                {/* Estimated Timeline */}
-                                <div className="mt-3 text-sm">
-                                    <div className="flex items-center justify-between">
-                                        <strong>Estimated Timeline</strong>
-                                        <button
-                                            className="text-xs px-2 py-1 rounded bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600"
-                                            onClick={async () => {
-                                                const ok = await copyToClipboard(
-                                                    response.estimated_timeline,
-                                                );
-                                                toast[ok ? "success" : "error"](
-                                                    ok ? "Copied" : "Copy failed",
-                                                );
-                                            }}
-                                        >
-                                            Copy
-                                        </button>
-                                    </div>
-                                    <div className="mt-1">{response.estimated_timeline}</div>
-                                </div>
-
-                                {/* Success Tips */}
-                                <div className="mt-3 text-sm">
-                                    <div className="flex items-center justify-between">
-                                        <strong>Success Tips</strong>
-                                        <button
-                                            className="text-xs px-2 py-1 rounded bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600"
-                                            onClick={async () => {
-                                                const text = response.success_tips.join("\n");
-                                                const ok = await copyToClipboard(text);
-                                                toast[ok ? "success" : "error"](
-                                                    ok ? "Copied" : "Copy failed",
-                                                );
-                                            }}
-                                        >
-                                            Copy All
-                                        </button>
-                                    </div>
-                                    <ul className="list-disc ml-6 mt-1">
-                                        {response.success_tips.map((tip, i) => (
-                                            <li key={i} className="flex items-start gap-2">
-                                                <span className="flex-1">{tip}</span>
-                                                <button
-                                                    className="text-xs px-2 py-0.5 rounded bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600"
-                                                    onClick={async () => {
-                                                        const ok = await copyToClipboard(tip);
-                                                        toast[ok ? "success" : "error"](
-                                                            ok ? "Copied" : "Copy failed",
-                                                        );
-                                                    }}
-                                                >
-                                                    Copy
-                                                </button>
-                                            </li>
-                                        ))}
-                                    </ul>
-                                </div>
-                                <button
-                                    className="w-full px-4 py-2 mt-4 font-bold text-white bg-green-500 rounded hover:bg-green-700 transition flex items-center justify-center gap-2 hover:scale-105 active:scale-95 shadow hover:shadow-lg"
-                                    onClick={async () => {
-                                        const success = await copyToClipboard(
-                                            response.proposal_text,
-                                        );
-                                        toast[success ? "success" : "error"](
-                                            success ? "Copied to clipboard!" : "Failed to copy",
-                                        );
-                                    }}
-                                    aria-label="Copy Proposal to Clipboard"
-                                >
-                                    <ClipboardCopy className="h-5 w-5 mr-2" />
-                                    Copy Proposal to Clipboard
-                                </button>
-                                <Dialog.Close asChild>
+                                <div className="flex items-center justify-end gap-2 mb-3">
                                     <button
-                                        className="w-full px-4 py-2 mt-2 font-bold text-gray-700 bg-gray-200 rounded hover:bg-gray-300 transition hover:scale-105 active:scale-95 shadow hover:shadow-lg dark:bg-gray-600 dark:text-gray-100 dark:hover:bg-gray-500"
-                                        aria-label="Close"
+                                        className="text-xs px-2 py-1 rounded bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600"
+                                        onClick={async () => {
+                                            const all = [
+                                                response.proposal_text,
+                                                "",
+                                                "Pricing Strategy",
+                                                response.pricing_strategy,
+                                                "",
+                                                "Estimated Timeline",
+                                                response.estimated_timeline,
+                                                "",
+                                                "Success Tips",
+                                                ...(response.success_tips || []).map(
+                                                    (t) => `- ${t}`,
+                                                ),
+                                            ].join("\n");
+                                            const ok = await copyToClipboard(all);
+                                            toast[ok ? "success" : "error"](
+                                                ok ? "Copied All" : "Copy failed",
+                                            );
+                                        }}
                                     >
-                                        Close
+                                        Copy All
                                     </button>
-                                </Dialog.Close>
+                                </div>
+                                <div className="flex-1 overflow-y-auto p-6 space-y-4">
+                                    {/* Proposal Text */}
+                                    <div className="mt-2 p-3 rounded border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800">
+                                        <div className="flex items-center justify-between">
+                                            <span className="font-semibold">Proposal</span>
+                                            <button
+                                                className="text-xs px-2 py-1 rounded bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600"
+                                                onClick={async () => {
+                                                    const ok = await copyToClipboard(
+                                                        response.proposal_text,
+                                                    );
+                                                    toast[ok ? "success" : "error"](
+                                                        ok ? "Copied" : "Copy failed",
+                                                    );
+                                                }}
+                                            >
+                                                Copy
+                                            </button>
+                                        </div>
+                                        <p className="mt-1 whitespace-pre-line font-mono text-sm break-words">
+                                            {response.proposal_text}
+                                        </p>
+                                    </div>
+
+                                    {/* Pricing Strategy */}
+                                    <div className="mt-3 text-sm">
+                                        <div className="flex items-center justify-between">
+                                            <strong>Pricing Strategy</strong>
+                                            <button
+                                                className="text-xs px-2 py-1 rounded bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600"
+                                                onClick={async () => {
+                                                    const ok = await copyToClipboard(
+                                                        response.pricing_strategy,
+                                                    );
+                                                    toast[ok ? "success" : "error"](
+                                                        ok ? "Copied" : "Copy failed",
+                                                    );
+                                                }}
+                                            >
+                                                Copy
+                                            </button>
+                                        </div>
+                                        <div className="mt-1">{response.pricing_strategy}</div>
+                                    </div>
+
+                                    {/* Estimated Timeline */}
+                                    <div className="mt-3 text-sm">
+                                        <div className="flex items-center justify-between">
+                                            <strong>Estimated Timeline</strong>
+                                            <button
+                                                className="text-xs px-2 py-1 rounded bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600"
+                                                onClick={async () => {
+                                                    const ok = await copyToClipboard(
+                                                        response.estimated_timeline,
+                                                    );
+                                                    toast[ok ? "success" : "error"](
+                                                        ok ? "Copied" : "Copy failed",
+                                                    );
+                                                }}
+                                            >
+                                                Copy
+                                            </button>
+                                        </div>
+                                        <div className="mt-1">{response.estimated_timeline}</div>
+                                    </div>
+
+                                    {/* Success Tips */}
+                                    <div className="mt-2 p-3 rounded border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800">
+                                        <div className="flex items-center justify-between">
+                                            <span className="font-semibold">Success Tips</span>
+                                            <button
+                                                className="text-xs px-2 py-1 rounded bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600"
+                                                onClick={async () => {
+                                                    const text = response.success_tips.join("\n");
+                                                    const ok = await copyToClipboard(text);
+                                                    toast[ok ? "success" : "error"](
+                                                        ok ? "Copied" : "Copy failed",
+                                                    );
+                                                }}
+                                            >
+                                                Copy All
+                                            </button>
+                                        </div>
+                                        <ul className="list-disc ml-5 mt-2 space-y-1 text-sm">
+                                            {response.success_tips.map((tip, i) => (
+                                                <li key={i} className="flex items-start gap-2">
+                                                    <span className="flex-1 leading-relaxed">
+                                                        {tip}
+                                                    </span>
+                                                    <button
+                                                        className="text-xs px-2 py-0.5 rounded bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600"
+                                                        onClick={async () => {
+                                                            const ok = await copyToClipboard(tip);
+                                                            toast[ok ? "success" : "error"](
+                                                                ok ? "Copied" : "Copy failed",
+                                                            );
+                                                        }}
+                                                    >
+                                                        Copy
+                                                    </button>
+                                                </li>
+                                            ))}
+                                        </ul>
+                                    </div>
+                                </div>
+                                <div className="border-t bg-white dark:bg-gray-800 p-4 flex flex-col sm:flex-row gap-2 sticky bottom-0">
+                                    <button
+                                        className="px-4 py-2 font-bold text-white bg-green-500 rounded hover:bg-green-600 transition flex items-center justify-center gap-2 hover:shadow"
+                                        onClick={async () => {
+                                            const success = await copyToClipboard(
+                                                response.proposal_text,
+                                            );
+                                            toast[success ? "success" : "error"](
+                                                success ? "Copied to clipboard!" : "Failed to copy",
+                                            );
+                                        }}
+                                        aria-label="Copy Proposal to Clipboard"
+                                    >
+                                        <ClipboardCopy className="h-5 w-5" />
+                                        Copy Proposal
+                                    </button>
+                                    <Dialog.Close asChild>
+                                        <button
+                                            className="px-4 py-2 font-bold text-gray-700 bg-gray-200 rounded hover:bg-gray-300 transition dark:bg-gray-700 dark:text-gray-100 dark:hover:bg-gray-600"
+                                            aria-label="Close"
+                                        >
+                                            Close
+                                        </button>
+                                    </Dialog.Close>
+                                </div>
                             </>
                         )}
                     </Dialog.Content>

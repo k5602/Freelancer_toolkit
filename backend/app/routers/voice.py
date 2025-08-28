@@ -5,7 +5,44 @@ from app.services.elevenlabs import text_to_speech
 router = APIRouter()
 
 
-@router.post("/generate", response_model=VoiceResponse)
+@router.post(
+    "/generate",
+    response_model=VoiceResponse,
+    responses={
+        200: {
+            "description": "Generated audio URL",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "audio_url": "/audio/output_abc123.mp3"
+                    }
+                }
+            }
+        }
+    },
+    openapi_extra={
+        "requestBody": {
+            "content": {
+                "application/json": {
+                    "examples": {
+                        "basic": {
+                            "summary": "Convert short text to speech",
+                            "value": {
+                                "text_to_speak": "Hello! This is a short message."
+                            }
+                        },
+                        "longer": {
+                            "summary": "Longer input",
+                            "value": {
+                                "text_to_speak": "Thanks for your message. I will follow up shortly with the next steps."
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    },
+)
 def generate_voice(request: VoiceRequest):
     """
     Generate a voice response from a text.

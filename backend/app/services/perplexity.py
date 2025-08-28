@@ -8,6 +8,7 @@ load_dotenv()
 # preplexity.ai is not reliable and often returns errors but we will use in production
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 GEMINI_API_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent"
+DEBUG = os.getenv("DEBUG", "").lower() ==  "dev"
 
 
 async def _post_to_gemini(payload: dict) -> str:
@@ -15,23 +16,28 @@ async def _post_to_gemini(payload: dict) -> str:
     Low-level POST helper. Returns the text output or an error string.
     """
     if not GEMINI_API_KEY:
-        print("[ERROR] Gemini API key not found.", file=sys.stderr)
-        return "Gemini API key not found. Please set the GEMINI_API_KEY environment variable."
+        if DEBUG:
+            print("[ERROR] Gemini API key not found.", file=sys.stderr)
+        return "AI configuration error"
     async with httpx.AsyncClient() as client:
         resp = await client.post(
             f"{GEMINI_API_URL}?key={GEMINI_API_KEY}", json=payload, timeout=45.0
         )
-        print(f"[DEBUG] Gemini API response status: {resp.status_code}", file=sys.stderr)
+        if DEBUG:
+            print(f"[DEBUG] Gemini API response status: {resp.status_code}", file=sys.stderr)
         if resp.status_code != 200:
-            print(f"[ERROR] Gemini API error: {resp.text}", file=sys.stderr)
-            return f"Gemini API error: {resp.text}"
+            if DEBUG:
+                print(f"[ERROR] Gemini API error: {resp.text}", file=sys.stderr)
+            return "AI service error"
         data = resp.json()
         try:
             text = data["candidates"][0]["content"]["parts"][0]["text"]
         except Exception as ex:
-            print(f"[ERROR] Gemini API response format error: {ex}", file=sys.stderr)
-            return "Gemini API response format error."
-        print(f"[DEBUG] Gemini API response text length: {len(text)}", file=sys.stderr)
+            if DEBUG:
+                print(f"[ERROR] Gemini API response format error: {ex}", file=sys.stderr)
+            return "AI response format error."
+        if DEBUG:
+            print(f"[DEBUG] Gemini API response text length: {len(text)}", file=sys.stderr)
         return text
 
 

@@ -1,3 +1,4 @@
+import os
 from fastapi import APIRouter, HTTPException, status
 from app.models.proposal import ProposalRequest, ProposalResponse
 from app.services.perplexity import get_proposal_completion_json
@@ -6,7 +7,65 @@ from app.services.scraper import scrape_job_posting
 router = APIRouter()
 
 
-@router.post("/generate", response_model=ProposalResponse)
+@router.post(
+    "/generate",
+    response_model=ProposalResponse,
+    responses={
+        200: {
+            "description": "Generated proposal",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "proposal_text": "Hello [Client], I can help you build the requested dashboard using React and FastAPI...",
+                        "pricing_strategy": "Fixed fee with clear milestones; hourly support for post-launch maintenance.",
+                        "estimated_timeline": "3-4 weeks",
+                        "success_tips": [
+                            "Highlight similar past projects",
+                            "Provide a short clickable demo",
+                            "Confirm timeline and milestones"
+                        ],
+                        "source_url": "https://www.upwork.com/jobs/Example-Job",
+                        "source_platform": "upwork",
+                        "extracted_title": "Senior React Developer",
+                        "extracted_description": "Client needs a React dashboard with charts and a FastAPI backend...",
+                        "extracted_requirements": [],
+                        "extracted_budget": "$3,000 fixed",
+                        "extracted_budget_type": "fixed",
+                        "extracted_currency": "$",
+                        "extracted_timeline": "4-6 weeks",
+                        "extracted_skills": ["React", "TypeScript", "FastAPI"],
+                        "client_location": "US"
+                    }
+                }
+            }
+        }
+    },
+    openapi_extra={
+        "requestBody": {
+            "content": {
+                "application/json": {
+                    "examples": {
+                        "fromUrl": {
+                            "summary": "Generate from job URL",
+                            "value": {
+                                "job_url": "https://www.upwork.com/jobs/Example-Job",
+                                "user_skills": ["React", "TypeScript", "FastAPI"],
+                                "target_rate": 45.0
+                            }
+                        },
+                        "fromText": {
+                            "summary": "Generate from pasted job description",
+                            "value": {
+                                "job_description": "We need a React dashboard with FastAPI backend for authentication and reporting.",
+                                "user_skills": ["React", "FastAPI", "PostgreSQL"]
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    },
+)
 async def generate_proposal(request: ProposalRequest):
     """
     Generate a proposal from job URL or description, with skills and rate.
@@ -43,7 +102,8 @@ async def generate_proposal(request: ProposalRequest):
                 job_text = scraped_info["description"] or job_text
             except Exception as scrape_err:
                 # Log and continue with any provided job_description
-                print(f"[WARN] scrape_job_posting failed: {scrape_err}")
+                if os.getenv("DEBUG", "").lower() ==  "dev":
+                    print(f"[WARN] scrape_job_posting failed: {scrape_err}")
 
         # Infer budget type/currency
         budget_text = (scraped_info.get("budget") or "").strip()

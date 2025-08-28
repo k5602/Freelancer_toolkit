@@ -1,7 +1,13 @@
 import asyncio
-from playwright.async_api import async_playwright
+import re
+import os
 from urllib.parse import urlparse
-from typing import Dict, Any, List
+from typing import Dict, Any, List, Optional
+from playwright.async_api import async_playwright
+try:
+    from playwright_stealth import stealth_async as _stealth_async
+except Exception:
+    _stealth_async = None
 
 
 def _normalize_text(text: str | None) -> str:
@@ -31,6 +37,35 @@ async def _extract_all_texts(page, selector: str) -> List[str]:
     except Exception:
         return []
 
+
+# Meta extraction helper
+async def _extract_meta(page) -> Dict[str, str]:
+    data: Dict[str, str] = {}
+    try:
+        desc = await page.locator("meta[name='description']").get_attribute("content")
+        if desc:
+            data["meta_description"] = _normalize_text(desc)
+    except Exception:
+        pass
+    try:
+        kw = await page.locator("meta[name='keywords']").get_attribute("content")
+        if kw:
+            data["meta_keywords"] = _normalize_text(kw)
+    except Exception:
+        pass
+    try:
+        og = await page.locator("meta[property='og:description']").get_attribute("content")
+        if og:
+            data["og_description"] = _normalize_text(og)
+    except Exception:
+        pass
+    try:
+        title = await page.title()
+        if title:
+            data["page_title"] = _normalize_text(title)
+    except Exception:
+        pass
+    return data
 
 async def parse_upwork(page) -> Dict[str, Any]:
     # Common selectors for Upwork job pages
@@ -148,13 +183,28 @@ async def parse_mostaql(page) -> Dict[str, Any]:
 
 async def scrape_job_posting(url: str) -> dict:
     async with async_playwright() as p:
-        browser = await p.chromium.launch(headless=True)
+        headless_env = os.getenv("HEADLESS", "true").lower() in ("1", "true", "yes", "on")
+        browser = await p.chromium.launch(headless=headless_env)
         context = await browser.new_context(
             user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/115.0.0.0 Safari/537.36",
             viewport={"width": 1366, "height": 900},
             java_script_enabled=True,
+            locale="en-US",
+            timezone_id="UTC",
+            extra_http_headers={
+                "Accept-Language": "en-US,en;q=0.9,de;q=0.8,ar;q=0.7",
+                "Upgrade-Insecure-Requests": "1",
+                "Sec-CH-UA": '"Chromium";v="115", "Not.A/Brand";v="24"',
+                "Sec-CH-UA-Platform": '"Windows"',
+            },
         )
         page = await context.new_page()
+        # Apply stealth to reduce bot detection (optional)
+        if _stealth_async is not None:
+            try:
+                await _stealth_async(page)
+            except Exception:
+                pass
         await page.goto(url, timeout=60000, wait_until="domcontentloaded")
         # Give page a moment for client-side rendering
         try:
@@ -166,36 +216,43 @@ async def scrape_job_posting(url: str) -> dict:
         host = host.lower()
 
         parsed: Dict[str, Any]
-        try:
-            if "upwork.com" in host:
-                parsed = await parse_upwork(page)
-            elif "freelancer.com" in host:
-                parsed = await parse_freelancer(page)
-            elif "mostaql.com" in host or "mostaqel.com" in host or "mustaqel.com" in host:
-                parsed = await parse_mostaql(page)
-            else:
-                # Generic fallback
-                parsed = {
-                    "platform": "generic",
-                    "title": _normalize_text(await page.title()),
-                    "description": _normalize_text(await page.inner_text("body")),
-                    "requirements": "",
-                    "budget": "",
-                    "timeline": "",
-                    "skills": [],
-                    "currency": "",
-                    "location": "",
-                }
-        finally:
-            await context.close()
-            await browser.close()
-
-        # Always include the URL and a combined description fallback
+        if "upwork.com" in host:
+            parsed = await parse_upwork(page)
+        elif "freelancer.com" in host:
+            parsed = await parse_freelancer(page)
+        elif "mostaql.com" in host or "mostaqel.com" in host or "mustaqel.com" in host:
+            parsed = await parse_mostaql(page)
+        else:
+            # Generic fallback
+            parsed = {
+                "platform": "generic",
+                "title": _normalize_text(await page.title()),
+                "description": _normalize_text(await page.inner_text("body")),
+                "requirements": "",
+                "budget": "",
+                "timeline": "",
+                "skills": [],
+                "currency": "",
+                "location": "",
+            }
+        # Enrich result and attach fallbacks before closing
         parsed["url"] = url
         if not parsed.get("description"):
-            parsed["description"] = _normalize_text(await page.content()) if 'page' in locals() else ""
+            try:
+                body_text = await page.inner_text("body")
+            except Exception:
+                body_text = ""
+            parsed["description"] = _normalize_text(body_text)
+
+        # Attach meta tags if not already present
+        try:
+            meta = await _extract_meta(page)
+            for k, v in meta.items():
+                if v and not parsed.get(k):
+                    parsed[k] = v
+        except Exception:
+            pass
+
+        await context.close()
+        await browser.close()
         return parsed
-
-
-# Usage:
-# asyncio.run(scrape_job_posting('https://www.upwork.com/job/example'))

@@ -104,7 +104,7 @@ const VoiceResponder: React.FC = () => {
                 <textarea
                     id="text_to_speak"
                     className="w-full h-24 p-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-400 transition dark:bg-gray-800 dark:border-gray-700"
-                    placeholder="Enter the message you'd like converted to audio..."
+                    placeholder="Enter the message of the empolyee..."
                     {...register("text_to_speak")}
                 />
                 <div className="text-xs text-gray-500 -mt-1">Keep it concise for best results.</div>

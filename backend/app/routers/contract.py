@@ -5,7 +5,53 @@ from app.services.perplexity import get_text_completion
 router = APIRouter()
 
 
-@router.post("/generate", response_model=ContractResponse)
+@router.post(
+    "/generate",
+    response_model=ContractResponse,
+    responses={
+        200: {
+            "description": "Generated contract with risk analysis",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "contract_text": "# Freelance Software Development Agreement\n\n## Scope of Work\n...",
+                        "risk_score": 45,
+                        "risk_level": "medium",
+                        "risk_flags": ["Payment terms unclear", "Scope creep risk not capped"],
+                        "recommendations": [
+                            "Add milestone-based payments with due dates",
+                            "Define a change request process and cap revisions"
+                        ]
+                    }
+                }
+            }
+        }
+    },
+    openapi_extra={
+        "requestBody": {
+            "content": {
+                "application/json": {
+                    "examples": {
+                        "fromDescription": {
+                            "summary": "Generate from project description",
+                            "value": {
+                                "project_description": "Build an authenticated web app with payment integration and admin reporting.",
+                                "client_details": "ACME Inc., Ms. Jane Doe"
+                            }
+                        },
+                        "fromProposal": {
+                            "summary": "Generate from proposal text",
+                            "value": {
+                                "proposal": "Hello Client, I propose to deliver a secure web application with milestones and testing...",
+                                "client_details": "ACME Inc., Ms. Jane Doe"
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    },
+)
 async def generate_contract(request: ContractRequest):
     """
     Generate a contract from a project description.
