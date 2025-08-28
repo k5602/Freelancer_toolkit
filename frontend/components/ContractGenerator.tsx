@@ -28,8 +28,9 @@ const ContractGenerator: React.FC = () => {
             setContract(res.contract_text || res.contract || "");
             toast.success("Contract generated successfully");
             reset();
-        } catch (err: any) {
-            toast.error(typeof err === "string" ? err : "Failed to generate contract");
+        } catch (err: unknown) {
+            const error = err as string | { message?: string };
+            toast.error(typeof error === "string" ? error : error.message || "Failed to generate contract");
         }
     };
 

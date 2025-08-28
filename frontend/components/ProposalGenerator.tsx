@@ -21,7 +21,6 @@ const ProposalGenerator: React.FC = () => {
         register,
         handleSubmit,
         formState: { errors, isSubmitting },
-        reset,
     } = useForm<FormData>({ resolver: zodResolver(schema) });
     const [response, setResponse] = React.useState<null | {
         proposal_text: string;
@@ -42,8 +41,9 @@ const ProposalGenerator: React.FC = () => {
             const res = await generateProposal(payload);
             setResponse(res);
             toast.success("Proposal generated successfully");
-        } catch (err: any) {
-            toast.error(typeof err === "string" ? err : "Failed to generate proposal");
+        } catch (err: unknown) {
+            const error = err as string | { message?: string };
+            toast.error(typeof error === "string" ? error : error.message || "Failed to generate proposal");
         }
     };
 

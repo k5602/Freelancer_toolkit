@@ -28,8 +28,9 @@ const VoiceResponder: React.FC = () => {
             setAudioUrl(res.audio_url || res.audioUrl || "");
             toast.success("Audio generated successfully");
             reset();
-        } catch (err: any) {
-            toast.error(typeof err === "string" ? err : "Failed to generate audio");
+        } catch (err: unknown) {
+            const error = err as string | { message?: string };
+            toast.error(typeof error === "string" ? error : error.message || "Failed to generate audio");
         }
     };
 
