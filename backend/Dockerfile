@@ -1,5 +1,5 @@
 # Stage 1: Final image
-FROM python:3.9-slim AS final
+FROM python:3.9-alpine AS final
 
 # Runtime environment variables
 ENV PYTHONDONTWRITEBYTECODE=1 \
@@ -13,51 +13,38 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 WORKDIR /app
 
 # ------------------------------------------------------------------------------
-# System dependencies
+# System dependencies using apk (Alpine's package manager)
 # ------------------------------------------------------------------------------
-# Update and install necessary packages in a single command
-RUN --mount=type=cache,target=/var/cache/apt \
-    apt-get update && \
-    DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
+# Install required packages
+RUN apk add --no-cache \
     nginx \
     supervisor \
     ca-certificates \
     curl \
-    fonts-liberation \
-    libasound2 \
-    libatk-bridge2.0-0 \
-    libatk1.0-0 \
-    libcairo2 \
-    libcups2 \
-    libdbus-1-3 \
-    libdrm2 \
-    libgbm1 \
-    libglib2.0-0 \
-    libgdk-pixbuf2.0-0 \
-    libgtk-3-0 \
-    libnspr4 \
-    libnss3 \
-    libpango-1.0-0 \
-    libx11-6 \
-    libx11-xcb1 \
-    libxcb1 \
-    libxcomposite1 \
-    libxdamage1 \
-    libxext6 \
-    libxfixes3 \
-    libxrandr2 \
-    libxshmfence1 \
-    libxkbcommon0 && \
-    apt-get clean && \
-    rm -rf /var/lib/apt/lists/*
+    # Headless Chromium/Playwright dependencies
+    ttf-freefont \
+    libstdc++ \
+    libgcc \
+    libxext \
+    libx11 \
+    libxcb \
+    libxcomposite \
+    libxdamage \
+    libxfixes \
+    libxrandr \
+    libxrender \
+    libxshmfence \
+    libxkbcommon \
+    mesa-egl \
+    mesa-gbm \
+    mesa-gl \
+    mesa-dri-gallium
 
 # ------------------------------------------------------------------------------
 # Python dependencies
 # ------------------------------------------------------------------------------
-# Copy requirements.txt and install
 COPY requirements.txt ./
-RUN --mount=type=cache,target=/root/.cache/pip \
-    pip install --upgrade pip && \
+RUN pip install --upgrade pip && \
     pip install --no-cache-dir -r ./requirements.txt && \
     python -m playwright install-deps chromium && \
     python -m playwright install chromium
@@ -68,7 +55,7 @@ RUN --mount=type=cache,target=/root/.cache/pip \
 COPY . ./
 
 # Nginx config
-RUN rm -f /etc/nginx/sites-enabled/default /etc/nginx/conf.d/default.conf || true
+RUN rm -f /etc/nginx/conf.d/default.conf || true
 RUN set -eux; \
     cat > /etc/nginx/conf.d/app.conf <<'NGINX_CONF'
 server {
