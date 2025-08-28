@@ -15,10 +15,7 @@ WORKDIR /app
 # ------------------------------------------------------------------------------
 # System dependencies
 # ------------------------------------------------------------------------------
-# Set a reliable DNS server to fix apt-get issues
-RUN echo "nameserver 8.8.8.8" > /etc/resolv.conf
-
-# Update and install necessary packages
+# Update and install necessary packages in a single command
 RUN --mount=type=cache,target=/var/cache/apt \
     apt-get update && \
     DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
@@ -57,6 +54,7 @@ RUN --mount=type=cache,target=/var/cache/apt \
 # ------------------------------------------------------------------------------
 # Python dependencies
 # ------------------------------------------------------------------------------
+# Copy requirements.txt and install
 COPY requirements.txt ./
 RUN --mount=type=cache,target=/root/.cache/pip \
     pip install --upgrade pip && \
