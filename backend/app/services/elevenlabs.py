@@ -51,4 +51,7 @@ def text_to_speech(text: str) -> str:
     except Exception as e:
         return f"Audio file write error: {str(e)}"
 
+    public_base = os.getenv("PUBLIC_BASE_URL", "").rstrip("/")
+    if public_base:
+        return f"{public_base}/audio/{filename}"
     return f"/audio/{filename}"

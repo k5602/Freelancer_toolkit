@@ -111,12 +111,15 @@ Backend (FastAPI):
 - SECRET_KEY
 - FRONTEND_URL (e.g. https://freelancer-toolkit.com)
 - CORS_ORIGINS (JSON array of allowed origins)
+- PUBLIC_BASE_URL (your backend origin, e.g. https://api.freelancer-toolkit.com)
 - DATABASE_URL (sqlite:///./freelancer_toolkit.db or PostgreSQL URL)
 - AUDIO_STORAGE_PATH (path to store generated audio, defaults to frontend/public/audio)
 - MAX_AUDIO_FILE_SIZE (bytes, default 10485760)
 
 ## Notes
 
-- Ensure CORS in backend allows your deployed frontend domain.
+- Ensure CORS in backend allows your deployed frontend domain (set FRONTEND_URL and/or CORS_ORIGINS).
+- Set PUBLIC_BASE_URL on the backend to your API origin (e.g. https://api.freelancer-toolkit.com) so audio URLs are absolute.
 - Set VITE_API_BASE_URL in Vercel project environment to point to your Railway backend.
+- Provide dummy keys in CI (already configured) to avoid hitting external APIs during tests.
 - will replace dummy with github secrets and env vars before launch

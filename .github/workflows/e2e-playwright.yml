@@ -1,0 +1,140 @@
+name: E2E Playwright (Python) Smoke
+
+on:
+  push:
+    paths:
+      - "backend/**"
+      - ".github/workflows/e2e-playwright.yml"
+  pull_request:
+    paths:
+      - "backend/**"
+      - ".github/workflows/e2e-playwright.yml"
+  workflow_dispatch:
+
+concurrency:
+  group: e2e-playwright-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  e2e-smoke:
+    name: Playwright E2E Smoke (Chromium + xvfb)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+    defaults:
+      run:
+        working-directory: backend
+    env:
+      ENVIRONMENT: test
+      GEMINI_API_KEY: "test_dummy"
+      ELEVENLABS_API_KEY: "test_dummy"
+      PERPLEXITY_API_KEY: "test_dummy"
+      PYTHONUNBUFFERED: "1"
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Cache pip
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ hashFiles('backend/requirements.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-
+
+      - name: Install backend dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install --no-compile --no-cache-dir -r requirements.txt
+
+      - name: Install xvfb
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y xvfb
+
+      - name: Install Playwright system deps (Chromium)
+        run: |
+          # Installs required system dependencies for Chromium
+          sudo python -m playwright install-deps chromium
+
+      - name: Install Playwright browsers (Chromium)
+        run: |
+          python -m playwright install chromium
+
+      - name: E2E Smoke - Launch Chromium and verify page load (xvfb)
+        run: |
+          xvfb-run -a python - <<'PY'
+          import asyncio
+          from playwright.async_api import async_playwright
+
+          async def main():
+              async with async_playwright() as p:
+                  browser = await p.chromium.launch(headless=True)
+                  context = await browser.new_context(
+                      viewport={"width": 1280, "height": 800},
+                      user_agent="Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Playwright-CI"
+                  )
+                  page = await context.new_page()
+                  await page.goto("https://example.com", wait_until="domcontentloaded", timeout=30000)
+                  title = await page.title()
+                  assert "Example Domain" in title, f"Unexpected title: {title}"
+                  await browser.close()
+              print("[E2E] Chromium launch + navigation smoke passed")
+
+          if __name__ == "__main__":
+              asyncio.run(main())
+          PY
+
+      # Placeholder for scraper-oriented smoke test. Intentionally kept offline-friendly.
+      # This simulates parsing of a minimal HTML snippet using Playwright without hitting real job boards.
+      - name: E2E Smoke - Scraper placeholder (data URL) with xvfb
+        run: |
+          xvfb-run -a python - <<'PY'
+          import asyncio
+          from playwright.async_api import async_playwright
+
+          HTML_SNIPPET = """
+          <html>
+            <head><title>Job Post</title></head>
+            <body>
+              <h1 data-test="job-title">Senior React Developer</h1>
+              <section data-test="job-description">
+                Build a high-quality SPA using React, TypeScript, and FastAPI backend.
+              </section>
+              <span data-test="budget">$3,000 fixed</span>
+              <div data-test="duration">4-6 weeks</div>
+            </body>
+          </html>
+          """
+
+          async def main():
+              async with async_playwright() as p:
+                  browser = await p.chromium.launch(headless=True)
+                  context = await browser.new_context()
+                  page = await context.new_page()
+                  # Use a data URL to avoid network in CI
+                  from urllib.parse import quote
+                  data_url = "data:text/html," + quote(HTML_SNIPPET)
+                  await page.goto(data_url, wait_until="domcontentloaded", timeout=15000)
+                  title = await page.title()
+                  assert "Job Post" in title, f"Unexpected title: {title}"
+                  # Quick selector checks (mirroring scraper expectations)
+                  t = await page.locator("h1[data-test='job-title']").first.inner_text()
+                  d = await page.locator("section[data-test='job-description']").first.inner_text()
+                  b = await page.locator("[data-test='budget']").first.inner_text()
+                  assert "Senior React Developer" in t
+                  assert "React" in d
+                  assert "$3,000" in b
+                  await browser.close()
+              print("[E2E] Scraper placeholder smoke passed")
+
+          if __name__ == "__main__":
+              asyncio.run(main())
+          PY
