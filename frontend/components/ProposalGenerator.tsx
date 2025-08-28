@@ -237,7 +237,7 @@ const ProposalGenerator: React.FC = () => {
                     <p className="mt-2 text-sm text-gray-600 dark:text-gray-300">Generating proposal...</p>
                 </div>
             )}
-            <Dialog.Root open={!!response} onOpenChange={() => setResponse(null)}>
+            <Dialog.Root open={!!response} onOpenChange={(v) => { if (!v) setResponse(null); }}>
                 <Dialog.Portal>
                     <Dialog.Overlay className="fixed inset-0 bg-black/40 z-40" />
                     <Dialog.Content

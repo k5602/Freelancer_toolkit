@@ -56,3 +56,67 @@ See [API.md](API.md) for more details on the API endpoints.
 ## Demo
 
 See [DEMO.md](DEMO.md) for a demo of the application.
+
+## CI/CD Overview
+
+This repository includes automated CI and CD with GitHub Actions:
+
+- Frontend CI: installs, lints, tests (Vitest), and builds Vite app
+- Backend CI: lints (flake8/black/isort), type-checks (mypy), runs pytest, and builds container image
+- Frontend Deploy (Vercel): deploys the `frontend` on pushes to main
+- Backend Deploy (Railway): deploys the `backend` service on pushes to main
+- E2E Smoke (Playwright): headless Chromium smoke tests for scraper readiness
+
+Workflows:
+
+- .github/workflows/frontend-ci.yml
+- .github/workflows/backend-ci.yml
+- .github/workflows/deploy-frontend-vercel.yml
+- .github/workflows/deploy-backend-railway.yml
+- .github/workflows/e2e-playwright.yml
+
+## Required Repository Secrets
+
+Vercel (frontend deploy):
+
+- VERCEL_TOKEN
+- VERCEL_ORG_ID
+- VERCEL_PROJECT_ID
+
+Railway (backend deploy):
+
+- RAILWAY_TOKEN
+- RAILWAY_PROJECT_ID
+- RAILWAY_ENVIRONMENT_ID (optional)
+- RAILWAY_SERVICE_ID (optional)
+
+Container Registry (optional):
+
+- Uses the built-in GITHUB_TOKEN to push ghcr.io images when on main or tags
+
+## Runtime Environment Variables
+
+Frontend (Vite):
+
+- VITE_API_BASE_URL (e.g. https://api.freelancer-toolkit.com or /api for local proxy)
+- VITE_APP_NAME (e.g. Freelancer Toolkit)
+
+Backend (FastAPI):
+
+- GEMINI_API_KEY
+- ELEVENLABS_API_KEY
+- PERPLEXITY_API_KEY
+- ENVIRONMENT (e.g. production, staging, test)
+- DEBUG (true/false)
+- SECRET_KEY
+- FRONTEND_URL (e.g. https://freelancer-toolkit.com)
+- CORS_ORIGINS (JSON array of allowed origins)
+- DATABASE_URL (sqlite:///./freelancer_toolkit.db or PostgreSQL URL)
+- AUDIO_STORAGE_PATH (path to store generated audio, defaults to frontend/public/audio)
+- MAX_AUDIO_FILE_SIZE (bytes, default 10485760)
+
+## Notes
+
+- Ensure CORS in backend allows your deployed frontend domain.
+- Set VITE_API_BASE_URL in Vercel project environment to point to your Railway backend.
+- will replace dummy with github secrets and env vars before launch
