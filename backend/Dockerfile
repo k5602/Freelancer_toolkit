@@ -1,3 +1,4 @@
+
 FROM python:3.9-slim AS final
 
 # Runtime env
@@ -11,11 +12,14 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 # Set working directory inside the container
 WORKDIR /app
 
+# ------------------------------------------------------------------------------
 # System dependencies
-RUN --mount=type=cache,target=/var/cache/apt \
-    set -eux; \
-    apt-get update; \
-    DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
+# ------------------------------------------------------------------------------
+# Update apt repositories first
+RUN apt-get update && apt-get -y upgrade
+
+# Install necessary packages
+RUN DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
     nginx \
     supervisor \
     ca-certificates \
@@ -44,8 +48,10 @@ RUN --mount=type=cache,target=/var/cache/apt \
     libxfixes3 \
     libxrandr2 \
     libxshmfence1 \
-    libxkbcommon0; \
-    rm -rf /var/lib/apt/lists/*
+    libxkbcommon0
+
+# Clean up apt cache to reduce image size
+RUN apt-get clean && rm -rf /var/lib/apt/lists/*
 
 # Install Python dependencies from requirements.txt
 COPY requirements.txt ./
