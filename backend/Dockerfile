@@ -1,5 +1,6 @@
 # Stage 1: Final image
-FROM python:3.9-alpine AS final
+# Use the official Playwright Python image
+FROM mcr.microsoft.com/playwright/python:v1.49.1-jammy AS final
 
 # Runtime environment variables
 ENV PYTHONDONTWRITEBYTECODE=1 \
@@ -13,41 +14,22 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 WORKDIR /app
 
 # ------------------------------------------------------------------------------
-# System dependencies using apk (Alpine's package manager)
+# System dependencies
 # ------------------------------------------------------------------------------
-# Install required packages
-RUN apk add --no-cache \
+# The Playwright image comes with most dependencies pre-installed,
+# but we still need nginx and supervisor
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
     nginx \
-    supervisor \
-    ca-certificates \
-    curl \
-    # Headless Chromium/Playwright dependencies
-    ttf-freefont \
-    libstdc++ \
-    libgcc \
-    libxext \
-    libx11 \
-    libxcb \
-    libxcomposite \
-    libxdamage \
-    libxfixes \
-    libxrandr \
-    libxrender \
-    libxshmfence \
-    libxkbcommon \
-    mesa-egl \
-    mesa-gbm \
-    mesa-gl \
-    mesa-dri-gallium
+    supervisor && \
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/*
 
 # ------------------------------------------------------------------------------
 # Python dependencies
 # ------------------------------------------------------------------------------
 COPY requirements.txt ./
-RUN pip install --upgrade pip && \
-    pip install --no-cache-dir -r ./requirements.txt && \
-    python -m playwright install-deps chromium && \
-    python -m playwright install chromium
+RUN pip install --no-cache-dir -r ./requirements.txt
 
 # ------------------------------------------------------------------------------
 # Copy backend application files
