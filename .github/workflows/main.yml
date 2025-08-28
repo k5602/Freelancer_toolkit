@@ -21,6 +21,10 @@ jobs:
         run: npm install
         working-directory: frontend
 
+      - name: Install types for howler
+        run: npm install --save-dev @types/howler
+        working-directory: frontend
+
       - name: Build
         run: npm run build
         working-directory: frontend
