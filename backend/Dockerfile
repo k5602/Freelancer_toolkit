@@ -11,8 +11,6 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 WORKDIR /app
 
 # ---- System deps (for Chromium/Playwright and FastAPI runtime) ----
-# We install this set of libraries required to run headless Chromium reliably
-# in most container platforms (Railway/containers).
 RUN --mount=type=cache,target=/var/cache/apt \
     set -eux; \
     apt-get update; \
@@ -32,7 +30,7 @@ RUN --mount=type=cache,target=/var/cache/apt \
     libdrm2 \
     libgbm1 \
     libglib2.0-0 \
-    libgdk-pixbuf2.0-0 \
+    libgdk-pixbuf-2.0-0 \
     libgtk-3-0 \
     libnspr4 \
     libnss3 \
@@ -56,8 +54,6 @@ RUN --mount=type=cache,target=/root/.cache/pip \
     pip install --no-cache-dir -r requirements.txt
 
 # ---- Install Playwright browsers + system deps ----
-# Install the necessary system deps and Chromium browser for Playwright at build-time
-# to avoid doing it at runtime. Keep in this order so playwright CLI is available.
 RUN set -eux; \
     python -m playwright install-deps chromium; \
     python -m playwright install chromium
@@ -76,16 +72,13 @@ RUN set -eux; \
 USER ${APP_USER}
 
 # ---- App source ----
-# Copy backend app source last to maximize caching of deps layers.
 COPY . .
 
 EXPOSE 8000
 
 # ---- Healthcheck ----
-# the FastAPI service provides /health endpoint
 HEALTHCHECK --interval=30s --timeout=5s --start-period=30s --retries=3 \
   CMD curl -fsS http://localhost:8000/health || exit 1
 
 # ---- Run ----
-# Use uvicorn to serve FastAPI app
 CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
