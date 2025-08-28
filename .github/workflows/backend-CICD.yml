@@ -1,35 +1,36 @@
-name: Build and Push to Azure Container Registry
+name: Build & Push Backend to ACR
 
 on:
   push:
     branches:
       - main
       - master
+    paths:
+      - "backend/**"
+      - ".github/workflows/**"
+  workflow_dispatch:
 
 jobs:
   build-and-push:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout repository
+      - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Log in to Azure
-        uses: azure/login@v2
+      - name: Log in to Azure Container Registry
+        uses: docker/login-action@v3
         with:
-          creds: ${{ secrets.AZURE_CREDENTIALS }}
-
-      - name: Log in to ACR
-        run: |
-          echo "${{ secrets.REGISTRY_PASSWORD }}" | docker login ${{ secrets.REGISTRY_LOGIN_SERVER }} \
-            --username ${{ secrets.REGISTRY_USERNAME }} --password-stdin
+          registry: ${{ secrets.REGISTRY_LOGIN_SERVER }}
+          username: ${{ secrets.REGISTRY_USERNAME }}
+          password: ${{ secrets.REGISTRY_PASSWORD }}
 
       - name: Build Docker image
         run: |
           IMAGE_NAME=${{ secrets.REGISTRY_LOGIN_SERVER }}/fastapi-playwright:$(date +%Y%m%d%H%M%S)
           echo "IMAGE_NAME=$IMAGE_NAME" >> $GITHUB_ENV
-          docker buildx build -f backend/Dockerfile -t $IMAGE_NAME ./backend
+          docker build -f backend/Dockerfile -t $IMAGE_NAME backend/
 
-      - name: Push Docker image to ACR
+      - name: Push Docker image
         run: |
           docker push $IMAGE_NAME
