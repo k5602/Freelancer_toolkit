@@ -11,7 +11,7 @@ that's an archticture diagram of the project the project under development so th
 
 ## Tech Stack
 
-- **Frontend:** React, Vite, Tailwind CSS, Shadcn UI
+- **Frontend:** React, Vite, Tailwind CSS, Radix UI
 - **Backend:** FastAPI, Python
 - **AI:** Perplexity, ElevenLabs
 

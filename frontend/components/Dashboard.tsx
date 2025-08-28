@@ -1,62 +1,67 @@
-import React, { useState } from "react";
-import ProposalGenerator from "./ProposalGenerator";
-import VoiceResponder from "./VoiceResponder";
-import ContractGenerator from "./ContractGenerator";
 
-type Tool = "proposal" | "voice" | "contract";
+import React from 'react';
+import { motion } from 'framer-motion';
+import { Link } from 'react-router-dom';
+import { FileText, Volume2, ScrollText } from 'lucide-react';
+import { useThemeStore } from '../lib/themeStore';
+
+const ToolCard = ({ icon, title, description, to }: { icon: React.ReactNode; title: string; description: string; to: string }) => (
+  <Link to={to}>
+    <motion.div
+      className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-lg flex flex-col items-center text-center h-full"
+      whileHover={{ y: -5, scale: 1.05 }}
+      transition={{ type: 'spring', stiffness: 300 }}
+    >
+      <div className="p-3 bg-blue-500 rounded-full text-white mb-4">
+        {icon}
+      </div>
+      <h3 className="text-xl font-bold mb-2 text-gray-900 dark:text-white">{title}</h3>
+      <p className="text-gray-600 dark:text-gray-300">{description}</p>
+    </motion.div>
+  </Link>
+);
 
 const Dashboard: React.FC = () => {
-    const [selectedTool, setSelectedTool] = useState<Tool | null>(null);
+  const { toggleTheme } = useThemeStore();
 
-    const renderTool = () => {
-        switch (selectedTool) {
-            case "proposal":
-                return <ProposalGenerator />;
-            case "voice":
-                return <VoiceResponder />;
-            case "contract":
-                return <ContractGenerator />;
-            default:
-                return (
-                    <div>
-                        <h1 className="text-3xl font-bold">Welcome to the Dashboard</h1>
-                        <p className="mt-4">Select a tool from the sidebar to get started.</p>
-                    </div>
-                );
-        }
-    };
+  return (
+    <div className="w-full max-w-4xl mx-auto px-4 py-8">
+      <motion.h1
+        className="text-4xl md:text-5xl font-extrabold text-gray-900 dark:text-white mb-12 text-center"
+        initial={{ opacity: 0, y: -20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5 }}
+      >
+        Dashboard
+      </motion.h1>
 
-    return (
-        <div className="flex h-screen">
-            <div className="w-64 bg-gray-800 text-white">
-                <div className="p-4 text-2xl font-bold">Freelancer Toolkit</div>
-                <nav className="mt-10">
-                    <a
-                        href="#"
-                        onClick={() => setSelectedTool("proposal")}
-                        className="block py-2.5 px-4 rounded transition duration-200 hover:bg-gray-700"
-                    >
-                        Proposal Generator
-                    </a>
-                    <a
-                        href="#"
-                        onClick={() => setSelectedTool("voice")}
-                        className="block py-2.5 px-4 rounded transition duration-200 hover:bg-gray-700"
-                    >
-                        Voice Responder
-                    </a>
-                    <a
-                        href="#"
-                        onClick={() => setSelectedTool("contract")}
-                        className="block py-2.5 px-4 rounded transition duration-200 hover:bg-gray-700"
-                    >
-                        Contract Generator
-                    </a>
-                </nav>
-            </div>
-            <div className="flex-1 p-10">{renderTool()}</div>
-        </div>
-    );
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+        <ToolCard
+          to="/proposal-generator"
+          icon={<FileText size={24} />}
+          title="Proposal Generator"
+          description="Create professional proposals from job descriptions or URLs."
+        />
+        <ToolCard
+          to="/voice-responder"
+          icon={<Volume2 size={24} />}
+          title="Voice Responder"
+          description="Generate voice responses from text for your clients."
+        />
+        <ToolCard
+          to="/contract-generator"
+          icon={<ScrollText size={24} />}
+          title="Contract Generator"
+          description="Quickly generate contracts based on your proposals."
+        />
+      </div>
+      <div className="mt-8 text-center">
+        <button onClick={toggleTheme} className="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">
+          Toggle Theme
+        </button>
+      </div>
+    </div>
+  );
 };
 
 export default Dashboard;
