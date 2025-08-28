@@ -16,14 +16,6 @@
     "noEmit": true,
     "jsx": "react-jsx"
   },
-  "include": [
-    "src",
-    "vite.config.ts"
-  ],
-  "exclude": [
-    "**/__tests__",
-    "node_modules",
-    "dist"
-  ],
-  "references": [{ "path": "./tsconfig.node.json" }]
+  "include": ["src"],
+  "exclude": ["**/__tests__", "node_modules", "dist"]
 }
