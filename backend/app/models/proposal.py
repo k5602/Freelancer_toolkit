@@ -1,4 +1,4 @@
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, model_validator
 
 
 class ProposalRequest(BaseModel):
@@ -18,11 +18,13 @@ class ProposalRequest(BaseModel):
         default=None, description="Desired hourly rate (optional)"
     )
 
-    @field_validator("job_description")
-    def description_not_empty(cls, v, values):
-        if not v and not values.get("job_url"):
+    @model_validator(mode="after")
+    def validate_inputs(self):
+        has_desc = bool(self.job_description and self.job_description.strip())
+        has_url = bool(self.job_url and self.job_url.strip())
+        if not (has_desc or has_url):
             raise ValueError("Either job_description or job_url must be provided.")
-        return v
+        return self
 
 
 class ProposalResponse(BaseModel):

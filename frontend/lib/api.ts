@@ -10,7 +10,8 @@ export async function generateProposal(data: {
         const res = await http.post(`/proposal/generate`, data);
         return res.data;
     } catch (err: any) {
-        throw err.response?.data?.detail || err.message;
+        // http interceptor already formats as { status, message }
+        throw err;
     }
 }
 
@@ -19,7 +20,7 @@ export async function generateContract(data: { proposal: string; client_details:
         const res = await http.post(`/contract/generate`, data);
         return res.data;
     } catch (err: any) {
-        throw err.response?.data?.detail || err.message;
+        throw err;
     }
 }
 
@@ -28,6 +29,6 @@ export async function generateVoice(data: { text_to_speak: string; }) {
         const res = await http.post(`/voice/generate`, data);
         return res.data;
     } catch (err: any) {
-        throw err.response?.data?.detail || err.message;
+        throw err;
     }
 }

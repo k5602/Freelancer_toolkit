@@ -30,6 +30,8 @@ const ProposalGenerator: React.FC = () => {
         register,
         handleSubmit,
         formState: { errors, isSubmitting },
+        watch,
+        reset,
     } = useForm<FormData>({ resolver: zodResolver(schema) });
     const [mode, setMode] = React.useState<"url" | "manual">("url");
     const [response, setResponse] = React.useState<null | {
@@ -38,9 +40,35 @@ const ProposalGenerator: React.FC = () => {
         estimated_timeline: string;
         success_tips: string[];
     }>(null);
+    const [errorMsg, setErrorMsg] = React.useState<string | null>(null);
+
+    // Persist form + mode in localStorage
+    const LS_KEY = "proposal_form_v1";
+    React.useEffect(() => {
+        try {
+            const raw = localStorage.getItem(LS_KEY);
+            if (raw) {
+                const saved = JSON.parse(raw) as { mode?: "url" | "manual"; form?: Partial<FormData> };
+                if (saved?.mode) setMode(saved.mode);
+                if (saved?.form) {
+                    reset(saved.form as any);
+                }
+            }
+        } catch {}
+        // run once
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
+
+    const formValues = watch();
+    React.useEffect(() => {
+        try {
+            localStorage.setItem(LS_KEY, JSON.stringify({ mode, form: formValues }));
+        } catch {}
+    }, [mode, formValues]);
 
     const onSubmit = async (data: FormData) => {
         try {
+            setErrorMsg(null);
             // Mode-aware validation
             if (mode === "url" && !data.job_url) {
                 toast.error("Please provide a job URL or switch to Manual tab.");
@@ -63,7 +91,15 @@ const ProposalGenerator: React.FC = () => {
             setResponse(res);
             toast.success("Proposal generated successfully");
         } catch (err: any) {
-            toast.error(typeof err === "string" ? err : "Failed to generate proposal");
+            if (err?.status === 400) {
+                const msg = err?.message || "Add job description or a valid URL.";
+                setErrorMsg(msg);
+                toast.error(msg);
+            } else {
+                const msg = err?.message || "Failed to generate proposal";
+                setErrorMsg(msg);
+                toast.error(msg);
+            }
         }
     };
 
@@ -75,6 +111,14 @@ const ProposalGenerator: React.FC = () => {
             className="w-full sm:max-w-xl md:max-w-2xl mx-auto px-2 py-6 bg-white dark:bg-gray-900 dark:text-gray-100 rounded-lg shadow-md transition-colors duration-300"
         >
             <h2 className="text-2xl font-bold mb-2 text-center">Proposal Generator</h2>
+            {errorMsg && (
+                <div
+                    className="mb-3 p-3 rounded border border-red-300 bg-red-50 text-red-700 dark:bg-red-900/20 dark:text-red-300"
+                    role="alert"
+                >
+                    {errorMsg}
+                </div>
+            )}
             <form
                 onSubmit={handleSubmit(onSubmit)}
                 className="mt-4 flex flex-col gap-3"
@@ -206,21 +250,88 @@ const ProposalGenerator: React.FC = () => {
                                 <Dialog.Title className="text-xl font-bold mb-2">
                                     Generated Proposal
                                 </Dialog.Title>
-                                <p className="mt-2 whitespace-pre-line font-mono text-sm break-words">
-                                    {response.proposal_text}
-                                </p>
-                                <div className="mt-2 text-sm">
-                                    <strong>Pricing Strategy:</strong> {response.pricing_strategy}
+                                {/* Proposal Text */}
+                                <div className="mt-2">
+                                    <div className="flex items-center justify-between">
+                                        <span className="font-semibold">Proposal</span>
+                                        <button
+                                            className="text-xs px-2 py-1 rounded bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600"
+                                            onClick={async () => {
+                                                const ok = await copyToClipboard(response.proposal_text);
+                                                toast[ok ? "success" : "error"](ok ? "Copied" : "Copy failed");
+                                            }}
+                                        >
+                                            Copy
+                                        </button>
+                                    </div>
+                                    <p className="mt-1 whitespace-pre-line font-mono text-sm break-words">
+                                        {response.proposal_text}
+                                    </p>
                                 </div>
-                                <div className="mt-2 text-sm">
-                                    <strong>Estimated Timeline:</strong>
-                                    {response.estimated_timeline}
+
+                                {/* Pricing Strategy */}
+                                <div className="mt-3 text-sm">
+                                    <div className="flex items-center justify-between">
+                                        <strong>Pricing Strategy</strong>
+                                        <button
+                                            className="text-xs px-2 py-1 rounded bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600"
+                                            onClick={async () => {
+                                                const ok = await copyToClipboard(response.pricing_strategy);
+                                                toast[ok ? "success" : "error"](ok ? "Copied" : "Copy failed");
+                                            }}
+                                        >
+                                            Copy
+                                        </button>
+                                    </div>
+                                    <div className="mt-1">{response.pricing_strategy}</div>
                                 </div>
-                                <div className="mt-2 text-sm">
-                                    <strong>Success Tips:</strong>
-                                    <ul className="list-disc ml-6">
+
+                                {/* Estimated Timeline */}
+                                <div className="mt-3 text-sm">
+                                    <div className="flex items-center justify-between">
+                                        <strong>Estimated Timeline</strong>
+                                        <button
+                                            className="text-xs px-2 py-1 rounded bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600"
+                                            onClick={async () => {
+                                                const ok = await copyToClipboard(response.estimated_timeline);
+                                                toast[ok ? "success" : "error"](ok ? "Copied" : "Copy failed");
+                                            }}
+                                        >
+                                            Copy
+                                        </button>
+                                    </div>
+                                    <div className="mt-1">{response.estimated_timeline}</div>
+                                </div>
+
+                                {/* Success Tips */}
+                                <div className="mt-3 text-sm">
+                                    <div className="flex items-center justify-between">
+                                        <strong>Success Tips</strong>
+                                        <button
+                                            className="text-xs px-2 py-1 rounded bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600"
+                                            onClick={async () => {
+                                                const text = response.success_tips.join("\n");
+                                                const ok = await copyToClipboard(text);
+                                                toast[ok ? "success" : "error"](ok ? "Copied" : "Copy failed");
+                                            }}
+                                        >
+                                            Copy All
+                                        </button>
+                                    </div>
+                                    <ul className="list-disc ml-6 mt-1">
                                         {response.success_tips.map((tip, i) => (
-                                            <li key={i}>{tip}</li>
+                                            <li key={i} className="flex items-start gap-2">
+                                                <span className="flex-1">{tip}</span>
+                                                <button
+                                                    className="text-xs px-2 py-0.5 rounded bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600"
+                                                    onClick={async () => {
+                                                        const ok = await copyToClipboard(tip);
+                                                        toast[ok ? "success" : "error"](ok ? "Copied" : "Copy failed");
+                                                    }}
+                                                >
+                                                    Copy
+                                                </button>
+                                            </li>
                                         ))}
                                     </ul>
                                 </div>

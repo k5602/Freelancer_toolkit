@@ -14,10 +14,14 @@ async def generate_proposal(request: ProposalRequest):
     try:
         job_text = request.job_description
         if request.job_url:
-            scraped = await scrape_job_posting(request.job_url)
-            job_text = scraped.get("description")
+            try:
+                scraped = await scrape_job_posting(request.job_url)
+                job_text = scraped.get("description") or job_text
+            except Exception as scrape_err:
+                # Log and continue with any provided job_description
+                print(f"[WARN] scrape_job_posting failed: {scrape_err}")
         if not job_text:
-            raise HTTPException(status_code=400, detail="No job description found.")
+            raise HTTPException(status_code=400, detail="No job description found (scrape failed and no description provided).")
 
         skills_str = ", ".join(request.user_skills) if request.user_skills else ""
         rate_str = (
@@ -30,31 +34,47 @@ async def generate_proposal(request: ProposalRequest):
             "- Proposal text\n- Pricing strategy\n- Timeline estimate\n- 3 tips to improve chances of success."
         )
         ai_response = await get_completion(prompt)
-        if not ai_response or "error" in ai_response.lower():
+        if not ai_response or (isinstance(ai_response, str) and "error" in ai_response.lower()):
             raise HTTPException(
                 status_code=status.HTTP_502_BAD_GATEWAY,
                 detail="AI service error: Unable to generate proposal.",
             )
-        # Parse AI response (simple split, improve later)
-        lines = ai_response.splitlines()
+        # Prefer JSON parsing
         proposal_text = ""
         pricing_strategy = ""
         estimated_timeline = ""
         success_tips = []
-        for line in lines:
-            l = line.lower()
-            if "proposal" in l and not proposal_text:
-                proposal_text = line.split(":", 1)[-1].strip()
-            elif "pricing" in l:
-                pricing_strategy = line.split(":", 1)[-1].strip()
-            elif "timeline" in l:
-                estimated_timeline = line.split(":", 1)[-1].strip()
-            elif "tip" in l:
-                tip = line.split(":", 1)[-1].strip()
-                if tip:
-                    success_tips.append(tip)
+        try:
+            import json
+
+            parsed = json.loads(ai_response) if isinstance(ai_response, str) else ai_response
+            if isinstance(parsed, dict):
+                proposal_text = str(parsed.get("proposal_text", "")).strip()
+                pricing_strategy = str(parsed.get("pricing_strategy", "")).strip()
+                estimated_timeline = str(parsed.get("estimated_timeline", "")).strip()
+                tips = parsed.get("success_tips", [])
+                if isinstance(tips, list):
+                    success_tips = [str(t).strip() for t in tips if str(t).strip()]
+        except Exception:
+            pass
+
+        # Heuristic fallback if JSON not provided
+        if not proposal_text and isinstance(ai_response, str):
+            lines = ai_response.splitlines()
+            for line in lines:
+                l = line.lower()
+                if "proposal" in l and not proposal_text:
+                    proposal_text = line.split(":", 1)[-1].strip()
+                elif "pricing" in l:
+                    pricing_strategy = line.split(":", 1)[-1].strip()
+                elif "timeline" in l:
+                    estimated_timeline = line.split(":", 1)[-1].strip()
+                elif "tip" in l:
+                    tip = line.split(":", 1)[-1].strip()
+                    if tip:
+                        success_tips.append(tip)
         # Fallbacks
-        proposal_text = proposal_text or ai_response
+        proposal_text = proposal_text or (ai_response if isinstance(ai_response, str) else "")
         pricing_strategy = pricing_strategy or "See proposal."
         estimated_timeline = estimated_timeline or "See proposal."
         if not success_tips:
@@ -69,6 +89,9 @@ async def generate_proposal(request: ProposalRequest):
             estimated_timeline=estimated_timeline,
             success_tips=success_tips,
         )
+    except HTTPException:
+        # raise explicit HTTP errors (e.g., 400)
+        raise
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e)

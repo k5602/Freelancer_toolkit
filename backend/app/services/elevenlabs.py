@@ -3,11 +3,19 @@ import uuid
 from elevenlabs.client import ElevenLabs
 import requests
 from dotenv import load_dotenv
+from pathlib import Path
 
 load_dotenv()
 
 ELEVENLABS_API_KEY = os.getenv("ELEVENLABS_API_KEY")
-AUDIO_DIR = os.getenv("AUDIO_STORAGE_PATH", "../../frontend/public/audio/")
+# Resolve default audio directory to monorepo frontend/public/audio (absolute)
+_repo_root = Path(__file__).resolve().parents[4]
+_default_audio_dir = _repo_root / "frontend" / "public" / "audio"
+_audio_dir_env = os.getenv("AUDIO_STORAGE_PATH")
+if _audio_dir_env:
+    AUDIO_DIR = str(Path(_audio_dir_env).resolve())
+else:
+    AUDIO_DIR = str(_default_audio_dir)
 
 client = ElevenLabs(api_key=ELEVENLABS_API_KEY)  # This line remains unchanged
 

@@ -13,7 +13,8 @@ export const http = axios.create({
 http.interceptors.response.use(
   (response) => response,
   (error) => {
-    const message = error?.response?.data?.detail || error?.message || 'Request failed';
-    return Promise.reject(message);
+    const status: number | undefined = error?.response?.status;
+    const message: string = error?.response?.data?.detail || error?.message || 'Request failed';
+    return Promise.reject({ status, message });
   }
 );
