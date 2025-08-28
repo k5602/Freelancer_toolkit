@@ -1,7 +1,7 @@
-
+# Stage 1: Final image
 FROM python:3.9-slim AS final
 
-# Runtime env
+# Runtime environment variables
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     PIP_NO_CACHE_DIR=1 \
@@ -9,17 +9,13 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     BACKEND_PORT=8000 \
     AUDIO_STORAGE_PATH=/app/audio_files
 
-# Set working directory inside the container
+# Set the working directory
 WORKDIR /app
 
-# ------------------------------------------------------------------------------
 # System dependencies
-# ------------------------------------------------------------------------------
-# Update apt repositories first
-RUN apt-get update && apt-get -y upgrade
-
-# Install necessary packages
-RUN DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
+RUN --mount=type=cache,target=/var/cache/apt \
+    apt-get update && \
+    DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
     nginx \
     supervisor \
     ca-certificates \
@@ -48,12 +44,11 @@ RUN DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
     libxfixes3 \
     libxrandr2 \
     libxshmfence1 \
-    libxkbcommon0
+    libxkbcommon0 && \
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/*
 
-# Clean up apt cache to reduce image size
-RUN apt-get clean && rm -rf /var/lib/apt/lists/*
-
-# Install Python dependencies from requirements.txt
+# Python dependencies
 COPY requirements.txt ./
 RUN --mount=type=cache,target=/root/.cache/pip \
     pip install --upgrade pip && \
@@ -61,7 +56,7 @@ RUN --mount=type=cache,target=/root/.cache/pip \
     python -m playwright install-deps chromium && \
     python -m playwright install chromium
 
-# Copy backend application
+# Copy backend application files
 COPY . ./
 
 # Nginx config
