@@ -8,6 +8,8 @@ from pathlib import Path
 load_dotenv()
 
 ELEVENLABS_API_KEY = os.getenv("ELEVENLABS_API_KEY")
+ELEVENLABS_VOICE_ID = os.getenv("ELEVENLABS_VOICE_ID", "21m00Tcm4TlvDq8ikWAM")
+ELEVENLABS_MODEL_ID = os.getenv("ELEVENLABS_MODEL_ID", "eleven_multilingual_v2")
 # Resolve default audio directory to monorepo frontend/public/audio (absolute)
 _repo_root = Path(__file__).resolve().parents[4]
 _default_audio_dir = _repo_root / "frontend" / "public" / "audio"
@@ -24,20 +26,38 @@ def text_to_speech(text: str) -> str:
     """
     Convert text to speech using ElevenLabs, save as unique file, return public URL.
     """
-    if not ELEVENLABS_API_KEY:
-        return "ElevenLabs API key not found. Please set the ELEVENLABS_API_KEY environment variable."
+    if not ELEVENLABS_API_KEY or ELEVENLABS_API_KEY.strip() in ("", "test_dummy"):
+        return "ElevenLabs API key missing or invalid. Set ELEVENLABS_API_KEY."
+    if not text or not text.strip():
+        return "Text to speak must not be empty"
+    safe_text = text.strip()
+    if len(safe_text) > 5000:
+        safe_text = safe_text[:5000]
     try:
-        url = "https://api.elevenlabs.io/v1/text-to-speech/Bella"
+        url = f"https://api.elevenlabs.io/v1/text-to-speech/{ELEVENLABS_VOICE_ID}"
         headers = {"xi-api-key": ELEVENLABS_API_KEY, "Content-Type": "application/json"}
         payload = {
-            "text": text,
-            "model_id": "eleven_multilingual_v2",
+            "text": safe_text,
+            "model_id": ELEVENLABS_MODEL_ID,
             "voice_settings": {"stability": 0.5, "similarity_boost": 0.5},
         }
-        response = requests.post(url, headers=headers, json=payload)
+        response = requests.post(url, headers=headers, json=payload, timeout=30)
         if response.status_code != 200:
-            return f"ElevenLabs API error: {response.text}"
+            try:
+                err = response.json()
+            except Exception:
+                err = {"detail": response.text}
+            return f"ElevenLabs API error ({response.status_code}): {err.get('detail') or err}"
+        ctype = response.headers.get("Content-Type", "")
+        if "audio" not in ctype.lower():
+            try:
+                err = response.json()
+            except Exception:
+                err = {"detail": response.text}
+            return f"ElevenLabs API error: Unexpected response type: {ctype} {err.get('detail') or ''}".strip()
         audio_data = response.content
+    except requests.RequestException as e:
+        return f"ElevenLabs network error: {str(e)}"
     except Exception as e:
         return f"ElevenLabs API error: {str(e)}"
 

@@ -1,4 +1,3 @@
-
 import React from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
@@ -19,7 +18,7 @@ const schema = z.object({
         .string()
         .min(10, "Job description must be at least 10 characters")
         .optional(),
-    user_skills: z.string().min(2, "Enter at least one skill"),
+    user_skills: z.string().optional(),
     target_rate: z.number().min(1, "Rate must be positive").optional(),
 });
 
@@ -42,13 +41,46 @@ const ProposalGenerator: React.FC = () => {
     }>(null);
     const [errorMsg, setErrorMsg] = React.useState<string | null>(null);
 
+    // Skill presets
+    const SKILL_PRESETS = {
+        frontend: {
+            react: ["React", "TypeScript", "Vite", "Tailwind CSS"],
+            angular: ["Angular", "TypeScript", "RxJS", "NgRx"],
+            nextjs: ["Next.js", "React", "TypeScript", "SSR/SSG"],
+        },
+        backend: {
+            fastapi: ["FastAPI", "Python", "Pydantic", "SQLAlchemy"],
+            django: ["Django", "Django REST Framework", "PostgreSQL"],
+            node_express: ["Node.js", "Express", "TypeScript", "JWT"],
+        },
+        devops: {
+            docker_k8s: ["Docker", "Kubernetes", "CI/CD", "Helm"],
+            aws_terraform: ["AWS", "Terraform", "CloudWatch", "ALB"],
+            azure_pipelines: ["Azure", "Docker", "Azure Pipelines", "Monitoring"],
+        },
+        ai: {
+            nlp_llm: ["Python", "NLP", "LLMs", "Prompt Engineering"],
+            rag: ["LangChain", "RAG", "Vector DB", "OpenAI/Gemini"],
+            cv_mlops: ["TensorFlow", "Computer Vision", "MLOps", "Kubeflow"],
+        },
+    } as const;
+
+    type CategoryKey = keyof typeof SKILL_PRESETS;
+
+    const [category, setCategory] = React.useState<CategoryKey>("frontend");
+    const [variant, setVariant] = React.useState<string>("react");
+    const [manualEnabled, setManualEnabled] = React.useState<boolean>(true);
+
     // Persist form + mode in localStorage
     const LS_KEY = "proposal_form_v1";
     React.useEffect(() => {
         try {
             const raw = localStorage.getItem(LS_KEY);
             if (raw) {
-                const saved = JSON.parse(raw) as { mode?: "url" | "manual"; form?: Partial<FormData> };
+                const saved = JSON.parse(raw) as {
+                    mode?: "url" | "manual";
+                    form?: Partial<FormData>;
+                };
                 if (saved?.mode) setMode(saved.mode);
                 if (saved?.form) {
                     reset(saved.form as any);
@@ -62,9 +94,18 @@ const ProposalGenerator: React.FC = () => {
     const formValues = watch();
     React.useEffect(() => {
         try {
-            localStorage.setItem(LS_KEY, JSON.stringify({ mode, form: formValues }));
+            localStorage.setItem(
+                LS_KEY,
+                JSON.stringify({
+                    mode,
+                    form: formValues,
+                    category,
+                    variant,
+                    manualEnabled,
+                }),
+            );
         } catch {}
-    }, [mode, formValues]);
+    }, [mode, formValues, category, variant, manualEnabled]);
 
     const onSubmit = async (data: FormData) => {
         try {
@@ -74,17 +115,34 @@ const ProposalGenerator: React.FC = () => {
                 toast.error("Please provide a job URL or switch to Manual tab.");
                 return;
             }
-            if (mode === "manual" && (!data.job_description || data.job_description.trim().length < 10)) {
+            if (
+                mode === "manual" &&
+                (!data.job_description || data.job_description.trim().length < 10)
+            ) {
                 toast.error("Please provide a job description of at least 10 characters.");
                 return;
             }
+            // Build skills from preset + optional manual input
+            const presetSkills: string[] =
+                (SKILL_PRESETS[category] && (SKILL_PRESETS[category] as any)[variant]) || [];
+            const manualSkills: string[] =
+                manualEnabled && data.user_skills
+                    ? data.user_skills
+                          .split(",")
+                          .map((s) => s.trim())
+                          .filter(Boolean)
+                    : [];
+
+            const finalSkills = Array.from(new Set([...presetSkills, ...manualSkills]));
+            if (finalSkills.length === 0) {
+                toast.error("Please select a skills preset or enable manual skills.");
+                return;
+            }
+
             const payload = {
                 job_url: data.job_url || undefined,
                 job_description: data.job_description || undefined,
-                user_skills: data.user_skills
-                    .split(",")
-                    .map((s) => s.trim())
-                    .filter(Boolean),
+                user_skills: finalSkills,
                 target_rate: data.target_rate || undefined,
             };
             const res = await generateProposal(payload);
@@ -104,7 +162,7 @@ const ProposalGenerator: React.FC = () => {
     };
 
     return (
-        <motion.div 
+        <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5 }}
@@ -126,29 +184,59 @@ const ProposalGenerator: React.FC = () => {
             >
                 <Tabs.Root value={mode} onValueChange={(v) => setMode(v as any)}>
                     <Tabs.List className="inline-flex rounded-md border border-gray-200 dark:border-gray-700 overflow-hidden self-center">
-                        <Tabs.Trigger value="url" className={clsx("px-4 py-2 text-sm", mode === 'url' ? "bg-blue-600 text-white" : "bg-transparent text-gray-700 dark:text-gray-300")}>URL</Tabs.Trigger>
-                        <Tabs.Trigger value="manual" className={clsx("px-4 py-2 text-sm", mode === 'manual' ? "bg-blue-600 text-white" : "bg-transparent text-gray-700 dark:text-gray-300")}>Manual</Tabs.Trigger>
+                        <Tabs.Trigger
+                            value="url"
+                            className={clsx(
+                                "px-4 py-2 text-sm",
+                                mode === "url"
+                                    ? "bg-blue-600 text-white"
+                                    : "bg-transparent text-gray-700 dark:text-gray-300",
+                            )}
+                        >
+                            URL
+                        </Tabs.Trigger>
+                        <Tabs.Trigger
+                            value="manual"
+                            className={clsx(
+                                "px-4 py-2 text-sm",
+                                mode === "manual"
+                                    ? "bg-blue-600 text-white"
+                                    : "bg-transparent text-gray-700 dark:text-gray-300",
+                            )}
+                        >
+                            Manual
+                        </Tabs.Trigger>
                     </Tabs.List>
 
                     <Tabs.Content value="url" className="mt-3">
-                        <label htmlFor="job_url" className="text-sm font-medium">Job posting URL</label>
+                        <label htmlFor="job_url" className="text-sm font-medium">
+                            Job posting URL
+                        </label>
                         <input
                             id="job_url"
                             className={clsx(
                                 "w-full p-2 border rounded focus:outline-none transition dark:bg-gray-800 dark:border-gray-700",
-                                errors.job_url ? "border-red-500" : "focus:ring-2 focus:ring-blue-400",
+                                errors.job_url
+                                    ? "border-red-500"
+                                    : "focus:ring-2 focus:ring-blue-400",
                             )}
                             placeholder="https://..."
                             {...register("job_url")}
                             aria-invalid={!!errors.job_url}
                             aria-describedby="job_url_help"
                         />
-                        {errors.job_url && <p className="text-red-500 text-sm">{errors.job_url.message}</p>}
-                        <p id="job_url_help" className="text-xs text-gray-500 -mt-1">We’ll fetch details from the job page.</p>
+                        {errors.job_url && (
+                            <p className="text-red-500 text-sm">{errors.job_url.message}</p>
+                        )}
+                        <p id="job_url_help" className="text-xs text-gray-500 -mt-1">
+                            We’ll fetch details from the job page.
+                        </p>
                     </Tabs.Content>
 
                     <Tabs.Content value="manual" className="mt-3">
-                        <label htmlFor="job_description" className="text-sm font-medium">Job description</label>
+                        <label htmlFor="job_description" className="text-sm font-medium">
+                            Job description
+                        </label>
                         <textarea
                             id="job_description"
                             className={clsx(
@@ -167,7 +255,97 @@ const ProposalGenerator: React.FC = () => {
                     </Tabs.Content>
                 </Tabs.Root>
 
-                <label htmlFor="user_skills" className="text-sm font-medium">Your skills</label>
+                <label htmlFor="user_skills" className="text-sm font-medium">
+                    Your skills
+                </label>
+                {/* Skill presets */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div className="flex flex-col gap-1">
+                        <label htmlFor="category" className="text-sm font-medium">
+                            Skill Category
+                        </label>
+                        <select
+                            id="category"
+                            className="w-full p-2 border rounded dark:bg-gray-800 dark:border-gray-700"
+                            value={category}
+                            onChange={(e) => {
+                                const next = e.target.value as CategoryKey;
+                                setCategory(next);
+                                // reset variant to first available for new category
+                                const firstVariant = Object.keys(SKILL_PRESETS[next])[0];
+                                setVariant(firstVariant);
+                            }}
+                        >
+                            <option value="frontend">Frontend</option>
+                            <option value="backend">Backend</option>
+                            <option value="devops">DevOps</option>
+                            <option value="ai">AI Developer</option>
+                        </select>
+                    </div>
+                    <div className="flex flex-col gap-1">
+                        <label htmlFor="variant" className="text-sm font-medium">
+                            Preset Variant
+                        </label>
+                        <select
+                            id="variant"
+                            className="w-full p-2 border rounded dark:bg-gray-800 dark:border-gray-700"
+                            value={variant}
+                            onChange={(e) => setVariant(e.target.value)}
+                        >
+                            {Object.keys(SKILL_PRESETS[category]).map((v) => (
+                                <option key={v} value={v}>
+                                    {v === "react"
+                                        ? "React"
+                                        : v === "angular"
+                                          ? "Angular"
+                                          : v === "nextjs"
+                                            ? "Next.js"
+                                            : v === "fastapi"
+                                              ? "FastAPI"
+                                              : v === "django"
+                                                ? "Django"
+                                                : v === "node_express"
+                                                  ? "Node + Express"
+                                                  : v === "docker_k8s"
+                                                    ? "Docker + Kubernetes"
+                                                    : v === "aws_terraform"
+                                                      ? "AWS + Terraform"
+                                                      : v === "azure_pipelines"
+                                                        ? "Azure Pipelines"
+                                                        : v === "nlp_llm"
+                                                          ? "NLP + LLMs"
+                                                          : v === "rag"
+                                                            ? "RAG + Vector DB"
+                                                            : v === "cv_mlops"
+                                                              ? "CV + MLOps"
+                                                              : v}
+                                </option>
+                            ))}
+                        </select>
+                        <div className="text-xs text-gray-500 dark:text-gray-400">
+                            Preset includes: {(SKILL_PRESETS[category] as any)[variant].join(", ")}
+                        </div>
+                    </div>
+                </div>
+
+                {/* Manual skills toggle */}
+                <div className="flex items-center gap-2 mt-3">
+                    <input
+                        id="manualEnabled"
+                        type="checkbox"
+                        className="h-4 w-4"
+                        checked={manualEnabled}
+                        onChange={(e) => setManualEnabled(e.target.checked)}
+                    />
+                    <label htmlFor="manualEnabled" className="text-sm">
+                        Add manual skills
+                    </label>
+                </div>
+
+                {/* Manual skills input */}
+                <label htmlFor="user_skills" className="text-sm font-medium mt-2">
+                    Manual skills (comma-separated)
+                </label>
                 <input
                     id="user_skills"
                     className={clsx(
@@ -177,11 +355,14 @@ const ProposalGenerator: React.FC = () => {
                     placeholder="e.g. React, Tailwind, FastAPI"
                     {...register("user_skills")}
                     aria-invalid={!!errors.user_skills}
+                    disabled={!manualEnabled}
                 />
                 {errors.user_skills && (
                     <p className="text-red-500 text-sm">{errors.user_skills.message}</p>
                 )}
-                <label htmlFor="target_rate" className="text-sm font-medium">Target hourly rate <span className="text-gray-500">(optional)</span></label>
+                <label htmlFor="target_rate" className="text-sm font-medium">
+                    Target hourly rate <span className="text-gray-500">(optional)</span>
+                </label>
                 <input
                     id="target_rate"
                     className={clsx(
@@ -190,7 +371,7 @@ const ProposalGenerator: React.FC = () => {
                     )}
                     type="number"
                     step="0.01"
-                    placeholder="e.g. 45"
+                    placeholder="e.g. 45 $"
                     {...register("target_rate", { valueAsNumber: true })}
                     aria-invalid={!!errors.target_rate}
                 />
@@ -227,17 +408,24 @@ const ProposalGenerator: React.FC = () => {
                 <div className="mt-3" aria-live="polite" role="status">
                     <Progress.Root
                         className="relative overflow-hidden bg-gray-200 dark:bg-gray-800 rounded h-2"
-                        style={{ transform: 'translateZ(0)' }}
+                        style={{ transform: "translateZ(0)" }}
                     >
                         <Progress.Indicator
                             className="bg-blue-500 w-1/2 h-full transition-transform"
-                            style={{ transform: 'translateX(50%)' }}
+                            style={{ transform: "translateX(50%)" }}
                         />
                     </Progress.Root>
-                    <p className="mt-2 text-sm text-gray-600 dark:text-gray-300">Generating proposal...</p>
+                    <p className="mt-2 text-sm text-gray-600 dark:text-gray-300">
+                        Generating proposal...
+                    </p>
                 </div>
             )}
-            <Dialog.Root open={!!response} onOpenChange={(v) => { if (!v) setResponse(null); }}>
+            <Dialog.Root
+                open={!!response}
+                onOpenChange={(v) => {
+                    if (!v) setResponse(null);
+                }}
+            >
                 <Dialog.Portal>
                     <Dialog.Overlay className="fixed inset-0 bg-black/40 z-40" />
                     <Dialog.Content
@@ -257,8 +445,12 @@ const ProposalGenerator: React.FC = () => {
                                         <button
                                             className="text-xs px-2 py-1 rounded bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600"
                                             onClick={async () => {
-                                                const ok = await copyToClipboard(response.proposal_text);
-                                                toast[ok ? "success" : "error"](ok ? "Copied" : "Copy failed");
+                                                const ok = await copyToClipboard(
+                                                    response.proposal_text,
+                                                );
+                                                toast[ok ? "success" : "error"](
+                                                    ok ? "Copied" : "Copy failed",
+                                                );
                                             }}
                                         >
                                             Copy
@@ -276,8 +468,12 @@ const ProposalGenerator: React.FC = () => {
                                         <button
                                             className="text-xs px-2 py-1 rounded bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600"
                                             onClick={async () => {
-                                                const ok = await copyToClipboard(response.pricing_strategy);
-                                                toast[ok ? "success" : "error"](ok ? "Copied" : "Copy failed");
+                                                const ok = await copyToClipboard(
+                                                    response.pricing_strategy,
+                                                );
+                                                toast[ok ? "success" : "error"](
+                                                    ok ? "Copied" : "Copy failed",
+                                                );
                                             }}
                                         >
                                             Copy
@@ -293,8 +489,12 @@ const ProposalGenerator: React.FC = () => {
                                         <button
                                             className="text-xs px-2 py-1 rounded bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600"
                                             onClick={async () => {
-                                                const ok = await copyToClipboard(response.estimated_timeline);
-                                                toast[ok ? "success" : "error"](ok ? "Copied" : "Copy failed");
+                                                const ok = await copyToClipboard(
+                                                    response.estimated_timeline,
+                                                );
+                                                toast[ok ? "success" : "error"](
+                                                    ok ? "Copied" : "Copy failed",
+                                                );
                                             }}
                                         >
                                             Copy
@@ -312,7 +512,9 @@ const ProposalGenerator: React.FC = () => {
                                             onClick={async () => {
                                                 const text = response.success_tips.join("\n");
                                                 const ok = await copyToClipboard(text);
-                                                toast[ok ? "success" : "error"](ok ? "Copied" : "Copy failed");
+                                                toast[ok ? "success" : "error"](
+                                                    ok ? "Copied" : "Copy failed",
+                                                );
                                             }}
                                         >
                                             Copy All
@@ -326,7 +528,9 @@ const ProposalGenerator: React.FC = () => {
                                                     className="text-xs px-2 py-0.5 rounded bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600"
                                                     onClick={async () => {
                                                         const ok = await copyToClipboard(tip);
-                                                        toast[ok ? "success" : "error"](ok ? "Copied" : "Copy failed");
+                                                        toast[ok ? "success" : "error"](
+                                                            ok ? "Copied" : "Copy failed",
+                                                        );
                                                     }}
                                                 >
                                                     Copy

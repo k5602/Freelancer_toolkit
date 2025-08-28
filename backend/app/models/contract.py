@@ -34,3 +34,15 @@ class ContractResponse(BaseModel):
     contract_text: str = Field(
         ..., min_length=10, description="Generated contract text"
     )
+    risk_score: int | None = Field(
+        default=None, ge=0, le=100, description="Risk score from 0 (low) to 100 (high)"
+    )
+    risk_level: str | None = Field(
+        default=None, description="Categorized risk level: low | medium | high"
+    )
+    risk_flags: list[str] = Field(
+        default_factory=list, description="Detected risk flags (e.g., payment terms, scope creep)"
+    )
+    recommendations: list[str] = Field(
+        default_factory=list, description="Recommended mitigations to reduce risk"
+    )

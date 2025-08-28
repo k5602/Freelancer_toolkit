@@ -1,6 +1,6 @@
 from fastapi import APIRouter, HTTPException, status
 from app.models.proposal import ProposalRequest, ProposalResponse
-from app.services.perplexity import get_completion
+from app.services.perplexity import get_proposal_completion_json
 from app.services.scraper import scrape_job_posting
 
 router = APIRouter()
@@ -12,14 +12,48 @@ async def generate_proposal(request: ProposalRequest):
     Generate a proposal from job URL or description, with skills and rate.
     """
     try:
+        # Initialize scraped info container
+        scraped_info = {
+            "platform": None,
+            "title": None,
+            "description": None,
+            "budget": None,
+            "timeline": None,
+            "skills": [],
+            "currency": None,
+            "location": None,
+        }
+
         job_text = request.job_description
         if request.job_url:
             try:
                 scraped = await scrape_job_posting(request.job_url)
-                job_text = scraped.get("description") or job_text
+                scraped_info.update(
+                    {
+                        "platform": scraped.get("platform"),
+                        "title": scraped.get("title"),
+                        "description": scraped.get("description"),
+                        "budget": scraped.get("budget") or scraped.get("hourly") or "",
+                        "timeline": scraped.get("timeline"),
+                        "skills": scraped.get("skills") or [],
+                        "currency": scraped.get("currency"),
+                        "location": scraped.get("location"),
+                    }
+                )
+                job_text = scraped_info["description"] or job_text
             except Exception as scrape_err:
                 # Log and continue with any provided job_description
                 print(f"[WARN] scrape_job_posting failed: {scrape_err}")
+
+        # Infer budget type/currency
+        budget_text = (scraped_info.get("budget") or "").strip()
+        lt = budget_text.lower()
+        extracted_budget_type = (
+            "hourly"
+            if ("hour" in lt or "hourly" in lt)
+            else ("fixed" if ("fixed" in lt or "$" in lt or "€" in lt) else "unknown")
+        )
+        extracted_currency = "$" if "$" in budget_text else ("€" if "€" in budget_text else scraped_info.get("currency"))
         if not job_text:
             raise HTTPException(status_code=400, detail="No job description found (scrape failed and no description provided).")
 
@@ -29,11 +63,17 @@ async def generate_proposal(request: ProposalRequest):
         )
         prompt = (
             f"Job Description:\n{job_text}\n\n"
-            f"Freelancer Skills: {skills_str}\n{rate_str}\n"
+            "Context (from job post):\n"
+            f"- Title: {scraped_info.get('title') or 'N/A'}\n"
+            f"- Platform: {scraped_info.get('platform') or 'N/A'}\n"
+            f"- Budget: {budget_text or 'N/A'} (type: {extracted_budget_type}, currency: {extracted_currency or 'unknown'})\n"
+            f"- Timeline: {scraped_info.get('timeline') or 'N/A'}\n"
+            f"- Skills from post: {', '.join(scraped_info.get('skills') or []) or 'N/A'}\n\n"
+            f"Freelancer Skills: {skills_str or 'N/A'}\n{rate_str}\n"
             "Generate a winning freelance proposal for this job. Include:\n"
             "- Proposal text\n- Pricing strategy\n- Timeline estimate\n- 3 tips to improve chances of success."
         )
-        ai_response = await get_completion(prompt)
+        ai_response = await get_proposal_completion_json(prompt)
         if not ai_response or (isinstance(ai_response, str) and "error" in ai_response.lower()):
             raise HTTPException(
                 status_code=status.HTTP_502_BAD_GATEWAY,
@@ -88,6 +128,17 @@ async def generate_proposal(request: ProposalRequest):
             pricing_strategy=pricing_strategy,
             estimated_timeline=estimated_timeline,
             success_tips=success_tips,
+            source_url=request.job_url,
+            source_platform=scraped_info.get("platform"),
+            extracted_title=scraped_info.get("title"),
+            extracted_description=scraped_info.get("description"),
+            extracted_requirements=[],  # Can be populated by future parser
+            extracted_budget=budget_text or None,
+            extracted_budget_type=extracted_budget_type,
+            extracted_currency=extracted_currency,
+            extracted_timeline=scraped_info.get("timeline"),
+            extracted_skills=[str(s).strip() for s in (scraped_info.get("skills") or []) if str(s).strip()],
+            client_location=scraped_info.get("location"),
         )
     except HTTPException:
         # raise explicit HTTP errors (e.g., 400)

@@ -1,4 +1,4 @@
-import { http } from './http';
+import { http } from "./http";
 
 export async function generateProposal(data: {
     job_url?: string;
@@ -7,7 +7,7 @@ export async function generateProposal(data: {
     target_rate?: number;
 }) {
     try {
-        const res = await http.post(`/proposal/generate`, data);
+        const res = await http.post(`/v1/proposal/generate`, data);
         return res.data;
     } catch (err: any) {
         // http interceptor already formats as { status, message }
@@ -15,18 +15,18 @@ export async function generateProposal(data: {
     }
 }
 
-export async function generateContract(data: { proposal: string; client_details: string; }) {
+export async function generateContract(data: { proposal: string; client_details: string }) {
     try {
-        const res = await http.post(`/contract/generate`, data);
+        const res = await http.post(`/v1/contract/generate`, data);
         return res.data;
     } catch (err: any) {
         throw err;
     }
 }
 
-export async function generateVoice(data: { text_to_speak: string; }) {
+export async function generateVoice(data: { text_to_speak: string }) {
     try {
-        const res = await http.post(`/voice/generate`, data);
+        const res = await http.post(`/v1/voice/generate`, data);
         return res.data;
     } catch (err: any) {
         throw err;

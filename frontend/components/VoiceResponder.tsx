@@ -5,6 +5,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { generateVoice } from "../lib/api";
 import { toast } from "react-hot-toast";
 import useSound from "use-sound";
+import { Howler } from "howler";
 import * as Dialog from "@radix-ui/react-dialog";
 import * as Progress from "@radix-ui/react-progress";
 import { Volume2, StopCircle, ClipboardCopy, Loader2 } from "lucide-react";
@@ -25,12 +26,62 @@ const VoiceResponder: React.FC = () => {
         reset,
     } = useForm<FormData>({ resolver: zodResolver(schema) });
     const [audioUrl, setAudioUrl] = React.useState("");
-    const [play, { stop }] = useSound(audioUrl, { soundEnabled: !!audioUrl });
+    const [language, setLanguage] = React.useState("auto");
+    const [toneOverride, setToneOverride] = React.useState("");
+    const [mood, setMood] = React.useState("");
+    const [responseText, setResponseText] = React.useState("");
+    const [play, { stop }] = useSound(audioUrl, {
+        soundEnabled: !!audioUrl,
+        format: ["mp3"],
+        html5: true,
+    });
+
+    const normalizeAudioUrl = (u: string): string => {
+        if (!u) return "";
+        if (/^https?:\/\//i.test(u)) return u;
+        if (u.startsWith("/audio/")) return `${window.location.origin}${u}`;
+        return u;
+    };
 
     const onSubmit = async (data: FormData) => {
         try {
-            const res = await generateVoice(data);
-            setAudioUrl(res.audio_url || res.audioUrl || "");
+            const resp = await fetch(
+                `${(import.meta as any).env?.VITE_API_BASE_URL || "/api"}/v1/voice/generate-response`,
+                {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                        message_text: data.text_to_speak,
+                        language,
+                        tone_override: toneOverride || null,
+                        max_words: 160,
+                    }),
+                },
+            );
+            if (!resp.ok) {
+                const errBody = await resp.text();
+                throw new Error(errBody || "Failed to generate response");
+            }
+            const res = await resp.json();
+            setResponseText(res.response_text || "");
+            setMood(res.mood || "");
+            const rawUrl = (res && (res.audio_url || res.audioUrl)) || "";
+            const finalUrl = normalizeAudioUrl(rawUrl);
+
+            // Preflight fetch to ensure it's actually audio and not an HTML error page
+            try {
+                const r = await fetch(finalUrl, { method: "GET" });
+                const ct = (r.headers.get("content-type") || "").toLowerCase();
+                if (!r.ok || !ct.includes("audio")) {
+                    throw new Error(`Invalid audio response (${r.status}) ${ct}`);
+                }
+            } catch (preErr) {
+                toast.error("Failed to load generated audio file.");
+                setAudioUrl("");
+                return;
+            }
+
+            setAudioUrl(finalUrl);
             toast.success("Audio generated successfully");
             reset();
         } catch (err: any) {
@@ -39,7 +90,7 @@ const VoiceResponder: React.FC = () => {
     };
 
     return (
-        <motion.div 
+        <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5 }}
@@ -47,14 +98,51 @@ const VoiceResponder: React.FC = () => {
         >
             <h2 className="text-2xl font-bold mb-2 text-center">Voice Responder</h2>
             <form onSubmit={handleSubmit(onSubmit)} className="mt-4 flex flex-col gap-3">
-                <label htmlFor="text_to_speak" className="text-sm font-medium">Text to speak</label>
+                <label htmlFor="text_to_speak" className="text-sm font-medium">
+                    Text to speak
+                </label>
                 <textarea
                     id="text_to_speak"
                     className="w-full h-24 p-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-400 transition dark:bg-gray-800 dark:border-gray-700"
                     placeholder="Enter the message you'd like converted to audio..."
                     {...register("text_to_speak")}
                 />
-                <p className="text-xs text-gray-500 -mt-1">Keep it concise for best results.</p>
+                <div className="text-xs text-gray-500 -mt-1">Keep it concise for best results.</div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-2">
+                    <div className="flex flex-col gap-1">
+                        <label className="text-sm font-medium" htmlFor="language_select">
+                            Language
+                        </label>
+                        <select
+                            id="language_select"
+                            className="w-full p-2 border rounded dark:bg-gray-800 dark:border-gray-700"
+                            value={language}
+                            onChange={(e) => setLanguage(e.target.value)}
+                        >
+                            <option value="auto">Auto-detect</option>
+                            <option value="en">English</option>
+                            <option value="de">Deutsch</option>
+                            <option value="ar">العربية</option>
+                        </select>
+                    </div>
+                    <div className="flex flex-col gap-1">
+                        <label className="text-sm font-medium" htmlFor="tone_select">
+                            Tone (optional)
+                        </label>
+                        <select
+                            id="tone_select"
+                            className="w-full p-2 border rounded dark:bg-gray-800 dark:border-gray-700"
+                            value={toneOverride}
+                            onChange={(e) => setToneOverride(e.target.value)}
+                        >
+                            <option value="">Auto-detect</option>
+                            <option value="urgent">Urgent</option>
+                            <option value="frustrated">Frustrated</option>
+                            <option value="excited">Excited</option>
+                            <option value="professional">Professional</option>
+                        </select>
+                    </div>
+                </div>
                 {errors.text_to_speak && (
                     <p className="text-red-500 text-sm">{errors.text_to_speak.message}</p>
                 )}
@@ -81,10 +169,18 @@ const VoiceResponder: React.FC = () => {
             </form>
             {isSubmitting && (
                 <div className="mt-3" aria-live="polite" role="status">
-                    <Progress.Root className="relative overflow-hidden bg-gray-200 dark:bg-gray-800 rounded h-2" style={{ transform: 'translateZ(0)' }}>
-                        <Progress.Indicator className="bg-blue-500 w-1/2 h-full transition-transform" style={{ transform: 'translateX(50%)' }} />
+                    <Progress.Root
+                        className="relative overflow-hidden bg-gray-200 dark:bg-gray-800 rounded h-2"
+                        style={{ transform: "translateZ(0)" }}
+                    >
+                        <Progress.Indicator
+                            className="bg-blue-500 w-1/2 h-full transition-transform"
+                            style={{ transform: "translateX(50%)" }}
+                        />
                     </Progress.Root>
-                    <p className="mt-2 text-sm text-gray-600 dark:text-gray-300">Generating audio...</p>
+                    <p className="mt-2 text-sm text-gray-600 dark:text-gray-300">
+                        Generating audio...
+                    </p>
                 </div>
             )}
             <Dialog.Root open={!!audioUrl} onOpenChange={() => setAudioUrl("")}>
@@ -94,10 +190,23 @@ const VoiceResponder: React.FC = () => {
                         <Dialog.Title className="text-xl font-bold mb-2">
                             Generated Audio
                         </Dialog.Title>
+                        {responseText && (
+                            <div className="w-full text-sm bg-gray-50 dark:bg-gray-800 p-3 rounded border dark:border-gray-700 mb-3">
+                                <div className="font-semibold mb-1">
+                                    Detected mood: {mood || "auto"}
+                                </div>
+                                <p className="whitespace-pre-line">{responseText}</p>
+                            </div>
+                        )}
                         <audio
                             controls
                             src={audioUrl}
                             className="mt-2 w-full max-w-xs dark:bg-gray-950 dark:text-gray-100"
+                            onError={() => {
+                                toast.error(
+                                    "Audio failed to play. Please regenerate or try again.",
+                                );
+                            }}
                         />
                         <div className="flex flex-wrap gap-2 mt-4 justify-center w-full">
                             <button
@@ -107,7 +216,20 @@ const VoiceResponder: React.FC = () => {
                                     "transition-transform duration-200 hover:scale-105 active:scale-95 shadow hover:shadow-lg",
                                     "dark:bg-green-600 dark:hover:bg-green-700",
                                 )}
-                                onClick={() => play()}
+                                onClick={async () => {
+                                    try {
+                                        // @ts-ignore
+                                        if (
+                                            Howler &&
+                                            (Howler as any).ctx &&
+                                            (Howler as any).ctx.state === "suspended"
+                                        ) {
+                                            // @ts-ignore
+                                            await (Howler as any).ctx.resume();
+                                        }
+                                    } catch {}
+                                    play();
+                                }}
                                 aria-label="Play audio"
                             >
                                 <Volume2 className="h-5 w-5" />
