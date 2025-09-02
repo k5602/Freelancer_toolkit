@@ -32,7 +32,7 @@ def text_to_speech(text: str) -> str:
         return "Text to speak must not be empty"
     safe_text = text.strip()
     if len(safe_text) > 5000:
-        safe_text = safe_text[:5000]
+        safe_text = safe_text[:5000] #taking only first 5000 characters to avoid long texts and api ratelimits
     try:
         url = f"https://api.elevenlabs.io/v1/text-to-speech/{ELEVENLABS_VOICE_ID}"
         headers = {"xi-api-key": ELEVENLABS_API_KEY, "Content-Type": "application/json"}

@@ -3,7 +3,6 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from pathlib import Path
 import os
-
 from app.routers import proposal, voice, contract, voice_mood
 
 app = FastAPI(
