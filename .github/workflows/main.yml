@@ -1,38 +1,31 @@
-name: Azure Static Web App CI/CD
+name: Deploy Frontend to Azure App Container
 
 on:
   workflow_dispatch:
 
 jobs:
-  build_and_deploy_job:
+  build_and_deploy:
     runs-on: ubuntu-latest
-    name: Build and Deploy Job
     steps:
-      - uses: actions/checkout@v2
+      - name: Checkout repository
+        uses: actions/checkout@v2
+
+      - name: Log in to Azure Container Registry
+        uses: azure/docker-login@v1
         with:
-          submodules: true
+          login-server: ${{ secrets.REGISTRY_LOGIN_SERVER }}
+          username: ${{ secrets.REGISTRY_USERNAME }}
+          password: ${{ secrets.REGISTRY_PASSWORD }}
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v2
+      - name: Build and push Docker image
+        run: |
+          docker build . -f ./frontend/Dockerfile -t ${{ secrets.REGISTRY_LOGIN_SERVER }}/freelancer-toolkit-frontend:${{ github.sha }}
+          docker push ${{ secrets.REGISTRY_LOGIN_SERVER }}/freelancer-toolkit-frontend:${{ github.sha }}
+
+      - name: Deploy to Azure Container App
+        uses: azure/container-apps-deploy-action@v1
         with:
-          node-version: '20'
-
-      - name: Install dependencies
-        run: npm install
-        working-directory: frontend
-
-      - name: Build
-        run: npm run build
-        working-directory: frontend
-
-      - name: Deploy to Static Web App
-        id: builddeploy
-        uses: Azure/static-web-apps-deploy@v1
-        with:
-          azure_static_web_apps_api_token: ${{ secrets.AZURE_STATIC_WEB_APPS_API_TOKEN }}
-          repo_token: ${{ secrets.GITHUB_TOKEN }}
-          action: 'upload'
-          app_location: 'frontend'
-          output_location: 'dist'
-          skip_app_build: true
-          api_location: ''
+          azure-container-registry-login-server: ${{ secrets.REGISTRY_LOGIN_SERVER }}
+          azure-container-app-name: YOUR_CONTAINER_APP_NAME
+          resource-group: YOUR_RESOURCE_GROUP
+          container-image-name: ${{ secrets.REGISTRY_LOGIN_SERVER }}/freelancer-toolkit-frontend:${{ github.sha }}
